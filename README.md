@@ -16,10 +16,26 @@ git clone https://github.com/pku-minic/sysy-cmake-template.git
 
 在 [compiler-dev](https://github.com/pku-minic/compiler-dev) 环境内, 进入仓库目录后执行:
 
+常用命令：
 ```sh
 cd sysy-make-template
 
+
+# 进入dock并且进入flex学习文档
 docker run -it --rm -v .:/root/compiler maxxing/compiler-dev bash
+cd compiler
+cd testSomething
+cd flexStudy
+
+
+# 进入dock并且进入bision学习文档
+docker run -it --rm -v .:/root/compiler maxxing/compiler-dev bash
+cd compiler
+cd testSomething
+cd bisionStudy
+
+
+
 
 
 cmake -DCMAKE_BUILD_TYPE=Debug -B build
