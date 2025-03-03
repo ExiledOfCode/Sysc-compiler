@@ -1,0 +1,188 @@
+太棒了！既然你已经掌握了 Flex 的基础知识，包括结构、正则表达式、Token 返回以及常见问题的解决方法，我们可以进入第二节课。这一节我们将深入探索 Flex 的高级功能，并通过一个更有挑战性的项目来巩固你的技能。让我们开始吧！
+
+---
+
+### Flex 第二节课：高级功能与实战
+
+#### 目标
+- 学习 Flex 的高级选项和状态机制。
+- 掌握如何处理更复杂的输入模式。
+- 完成一个简单的“代码高亮”词法分析器项目。
+
+---
+
+### 第一部分：高级选项与技巧
+#### 1. 使用 `%option` 控制行为
+除了 `noyywrap`，Flex 还有很多选项可以优化你的词法分析器：
+- **`%option case-insensitive`**: 使匹配对大小写不敏感。
+  - 示例：`"hello"` 会同时匹配 `hello`、`HELLO`、`HeLLo`。
+- **`%option yylineno`**: 自动跟踪行号，方便调试。
+  - 使用 `yylineno` 变量获取当前行号。
+- **`%option debug`**: 开启调试模式，运行时会输出匹配细节。
+
+**示例**：统计行号并忽略大小写：
+```c
+%{
+#include <stdio.h>
+%}
+%option yylineno
+%option case-insensitive
+
+%%
+"hello"     { printf("行 %d: 找到 hello\n", yylineno); }
+\n          { /* 忽略换行，但 yylineno 会自动增加 */ }
+.           { /* 忽略其他字符 */ }
+%%
+
+int main() {
+    yylex();
+    return 0;
+}
+```
+- 输入 `HELLO` 或 `hello`，都会输出行号。
+
+#### 2. 使用变量和动态输出
+你可以定义全局变量来记录状态，或用 `yytext` 做动态处理。
+- 示例：统计单词出现次数：
+```c
+%{
+#include <stdio.h>
+int word_count = 0;
+%}
+%option noyywrap
+
+%%
+[a-zA-Z]+   { word_count++; printf("单词 %d: %s\n", word_count, yytext); }
+[ \t\n]     { /* 忽略空白 */ }
+.           { /* 忽略其他 */ }
+%%
+
+int main() {
+    yylex();
+    printf("总单词数: %d\n", word_count);
+    return 0;
+}
+```
+
+#### 3. 多规则优先级
+- 当多个规则都能匹配时，Flex 选择**最长匹配**，如果长度相同，则选择**定义靠前的规则**。
+- 示例：
+```c
+%%
+"hello"     { printf("精确匹配 hello\n"); }
+[a-z]+      { printf("匹配小写字母: %s\n", yytext); }
+%%
+```
+- 输入 `hello`，只会触发第一个规则，因为它是精确匹配。
+
+---
+
+### 第二部分：状态机制（Start Conditions）
+#### 1. 什么是状态？
+- Flex 支持状态机制（Start Conditions），让你在不同“模式”下应用不同的规则。比如，处理注释时可以用单独的规则。
+- 用 `%x` 或 `%s` 定义状态：
+  - `%s`: 包含状态（可以与默认状态共存）。
+  - `%x`: 排他状态（只在该状态下匹配）。
+
+#### 2. 示例：识别单行注释
+我们用状态来匹配 C 风格的单行注释 `// ...`：
+```c
+%{
+#include <stdio.h>
+%}
+%option noyywrap
+%x COMMENT
+
+%%
+"//"            { BEGIN(COMMENT); }  /* 进入 COMMENT 状态 */
+<COMMENT>.|\n   { if (yytext[0] == '\n') BEGIN(INITIAL); }  /* 遇到换行退出 */
+[a-zA-Z]+       { printf("单词: %s\n", yytext); }
+[ \t\n]         { /* 忽略空白 */ }
+.               { /* 忽略其他 */ }
+%%
+
+int main() {
+    yylex();
+    return 0;
+}
+```
+- **解释**:
+  - `BEGIN(COMMENT)`: 切换到 `COMMENT` 状态。
+  - `<COMMENT>.|\n`: 在 `COMMENT` 状态下匹配任意字符，直到换行。
+  - `BEGIN(INITIAL)`: 返回默认状态。
+- 输入：`hello // this is a comment`，输出只有 `单词: hello`，注释被忽略。
+
+---
+
+### 第三部分：实战项目 - 简单代码高亮器
+#### 项目目标
+编写一个 Flex 程序，识别 C 语言中的关键字、数字和注释，并用不同方式输出它们。
+
+#### 代码实现
+新建 `highlight.l`：
+```c
+%{
+#include <stdio.h>
+%}
+%option noyywrap
+%option yylineno
+%x COMMENT
+
+/* 定义关键字 */
+KEYWORD     if|else|while|for|int|return
+
+%%
+"//"            { BEGIN(COMMENT); printf("注释开始: "); }
+<COMMENT>.|\n   { printf("%c", yytext[0]); if (yytext[0] == '\n') BEGIN(INITIAL); }
+{KEYWORD}       { printf("关键字: %s\n", yytext); }
+[0-9]+          { printf("数字: %s\n", yytext); }
+[a-zA-Z_][a-zA-Z0-9_]*  { printf("标识符: %s\n", yytext); }
+[ \t\n]         { /* 忽略空白 */ }
+.               { printf("符号: %c\n", yytext[0]); }
+%%
+
+int main() {
+    yylex();
+    return 0;
+}
+```
+
+#### 操作步骤
+1. 保存为 `highlight.l`。
+2. 编译运行：
+   ```bash
+   flex highlight.l
+   gcc lex.yy.c -o highlight
+   ./highlight
+   ```
+3. 测试输入：
+   ```
+   int main // this is main
+   for 123
+   ```
+   输出类似：
+   ```
+   关键字: int
+   标识符: main
+   注释开始: // this is main
+   关键字: for
+   数字: 123
+   ```
+
+#### 挑战练习
+1. 添加更多关键字（比如 `float`, `double`）。
+2. 识别多行注释 `/* ... */`（提示：需要一个新状态，匹配到 `*/` 时退出）。
+
+---
+
+### 学习计划建议
+1. **今天**: 理解高级选项和状态机制，运行示例代码。
+2. **明天**: 完成“代码高亮器”项目，并尝试挑战练习。
+3. **后天**: 复习两节课内容，思考如何结合 Bison 做语法分析（下一节课预告！）。
+
+---
+
+### 下一步预告
+第三节课将介绍如何将 Flex 与 Bison 结合，构建一个完整的简单计算器，包括词法和语法分析。
+
+有问题吗？或者想现在就试试项目？随时告诉我！

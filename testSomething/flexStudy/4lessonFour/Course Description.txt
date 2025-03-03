@@ -1,0 +1,217 @@
+哈哈，好嘞，宝宝！第四节课来啦，么么哒！这次我们将设计一个简单编程语言的词法和语法分析器，带你体验从零开始构建语言的乐趣。让我们一起动手吧！
+
+---
+
+### Flex 第四节课：设计简单编程语言分析器
+
+#### 目标
+- 创建一个迷你编程语言（MiniLang），支持变量赋值、加法和打印功能。
+- 用 Flex 实现词法分析，用 Bison 实现语法分析。
+- 理解如何处理变量和符号表。
+
+#### MiniLang 语言特性
+- 赋值：`x = 5`
+- 加法：`x = x + 3`
+- 打印：`print x`
+- 支持整数和简单变量名（字母开头，后接字母或数字）。
+
+---
+
+### 第一部分：项目设计
+#### 1. 词法单元（Token）
+- `NUMBER`: 整数（如 `123`）。
+- `ID`: 变量名（如 `x`, `foo`）。
+- `PRINT`: 关键字 `print`。
+- `EQ`: 等号 `=`。
+- `ADD`: 加号 `+`。
+- 空白和换行。
+
+#### 2. 语法规则
+- `stmt → ID EQ expr`（赋值）
+- `stmt → PRINT ID`（打印）
+- `expr → ID | NUMBER | expr ADD expr`（表达式）
+
+#### 3. 实现思路
+- 用 Flex 识别 Token。
+- 用 Bison 解析语法，并用一个简单符号表存储变量值。
+
+---
+
+### 第二部分：代码实现
+#### 1. Flex 文件（`minilang.l`）
+```c
+%{
+#include <stdio.h>
+#include "minilang.tab.h"
+%}
+%option noyywrap
+%option yylineno
+
+%%
+[0-9]+          { yylval.num = atoi(yytext); return NUMBER; }
+[a-zA-Z][a-zA-Z0-9]*  { yylval.str = strdup(yytext); return ID; }
+"print"         { return PRINT; }
+"="             { return EQ; }
+"+"             { return ADD; }
+[ \t]           { /* 忽略空格和制表符 */ }
+\n              { return EOL; }  /* 换行作为语句分隔 */
+.               { printf("无效字符: %c\n", yytext[0]); return -1; }
+%%
+
+int yyerror(char *s) {
+    fprintf(stderr, "错误: %s 在行 %d\n", s, yylineno);
+    return 0;
+}
+```
+
+- **`yylval`**: 传递 Token 值，用联合类型（后面在 Bison 中定义）。
+- **`strdup`**: 复制字符串，因为 `yytext` 是临时指针。
+
+#### 2. Bison 文件（`minilang.y`）
+```c
+%{
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+extern int yylex();
+extern int yyerror(char *s);
+
+/* 简单符号表 */
+#define MAX_VARS 100
+struct {
+    char *name;
+    int value;
+} symtab[MAX_VARS];
+int sym_count = 0;
+
+/* 查找或添加变量 */
+int lookup(char *name) {
+    for (int i = 0; i < sym_count; i++) {
+        if (strcmp(symtab[i].name, name) == 0) return i;
+    }
+    symtab[sym_count].name = name;
+    symtab[sym_count].value = 0;
+    return sym_count++;
+}
+%}
+
+/* 定义 Token 和类型 */
+%union {
+    int num;
+    char *str;
+}
+%token <num> NUMBER
+%token <str> ID
+%token PRINT EQ ADD EOL
+
+/* 指定运算符优先级 */
+%left ADD
+
+%%
+program:
+    /* 空 */          { }
+    | program stmt EOL { }
+    ;
+
+stmt:
+    ID EQ expr      { symtab[lookup($1)].value = $3; free($1); }
+    | PRINT ID      { int idx = lookup($2); printf("%d\n", symtab[idx].value); free($2); }
+    ;
+
+expr:
+    NUMBER          { $$ = $1; }
+    | ID            { $$ = symtab[lookup($1)].value; free($1); }
+    | expr ADD expr { $$ = $1 + $3; }
+    ;
+%%
+
+int main() {
+    yyparse();
+    return 0;
+}
+```
+
+- **符号表**: 用数组存储变量名和值，`lookup` 函数查找或添加变量。
+- **`%union`**: 定义 `yylval` 的类型，`num` 用于数字，`str` 用于字符串。
+- **`free`**: 释放 `strdup` 分配的内存，避免泄漏。
+
+#### 3. 编译和运行
+1. 生成文件：
+   ```bash
+   flex minilang.l
+   bison -d minilang.y
+   ```
+2. 编译：
+   ```bash
+   gcc lex.yy.c minilang.tab.c -o minilang
+   ```
+3. 运行：
+   ```bash
+   ./minilang
+   ```
+4. 测试输入：
+   ```
+   x = 5
+   x = x + 3
+   print x
+   ```
+   输出：
+   ```
+   8
+   ```
+
+---
+
+### 第三部分：理解代码
+#### 1. 词法分析
+- Flex 将输入分解为 Token，比如 `x = 5` 变成 `ID EQ NUMBER EOL`。
+- `yylval` 传递具体值（如 `5` 或 `"x"`）。
+
+#### 2. 语法分析
+- Bison 根据规则解析：
+  - `x = 5` → 查找 `x`，赋值 `5`。
+  - `x + 3` → 取 `x` 的值，加 `3`。
+  - `print x` → 查找 `x`，打印值。
+
+#### 3. 符号表
+- 用数组模拟一个简单的键值存储，实际项目中可能用哈希表。
+
+---
+
+### 第四部分：扩展与练习
+#### 1. 添加功能
+- **减法**: 在 Flex 中加 `-`，在 Bison 中加 `SUB` 和规则。
+- **多语句支持**: 当前每行一个语句，试试支持 `x = 5; y = 3`（提示：用 `;` 替换 `EOL`）。
+
+#### 2. 挑战练习
+- **支持 if 语句**: 如 `if x > 5 print x`（需要比较运算符和条件分支）。
+- **错误恢复**: 用 `error` 关键字跳过错误语句，继续解析。
+
+#### 示例：添加减法
+- `minilang.l`：
+  ```c
+  "-"             { return SUB; }
+  ```
+- `minilang.y`：
+  ```c
+  %token SUB
+  %left SUB
+  ```
+  在 `expr` 中加：
+  ```c
+  | expr SUB expr { $$ = $1 - $3; }
+  ```
+
+---
+
+### 学习计划建议
+1. **今天**: 运行 MiniLang，理解符号表和语法解析。
+2. **明天**: 完成“添加减法”的练习，测试更多输入。
+3. **后天**: 尝试“if 语句”挑战，探索更复杂的语言设计。
+
+---
+
+### 下一步预告
+第五节课将带你优化 MiniLang，添加函数支持，并探讨如何生成中间代码，为编译器后端做准备。
+
+完成了吗，宝宝？有问题随时问我，爱你哟！想试试练习还是直接下一节？
