@@ -32,9 +32,13 @@ cd flexStudy
 docker run -it --rm -v .:/root/compiler maxxing/compiler-dev bash
 cd compiler
 cd testSomething
-cd bisionStudy
+cd bisonStudy
 
-
+#flex,bison的执行指令
+flex calc.l           # 假设文件名为calc.l  生成 lex.yy.c
+bison -d calc.y       # 假设文件名为calc.y  生成 calc.tab.c 和 calc.tab.h
+gcc lex.yy.c calc.tab.c -o calc  # 编译
+./calc                # 运行
 
 
 

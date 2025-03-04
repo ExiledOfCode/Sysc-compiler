@@ -14,7 +14,7 @@ ARG BIN_INSTALL_DIR=${INSTALL_DIR}/bin
 # setup APT mirror
 RUN sed -i "s@http://.*archive.ubuntu.com@http://mirrors.tuna.tsinghua.edu.cn@g" /etc/apt/sources.list && \
   sed -i "s@http://.*security.ubuntu.com@http://mirrors.tuna.tsinghua.edu.cn@g" /etc/apt/sources.list
-  
+
 # setup ca-certificates for https mirror
 RUN apt update 
 RUN apt upgrade ca-certificates --fix-missing -y
@@ -88,8 +88,8 @@ RUN git clone --single-branch --depth 1 ${SYSYRT_REPO_URL} sysyrt && \
   make -C sysyrt libsysy && \
   mkdir -p native && cp sysyrt/build/libsysy.a native && \
   make NO_LIBC=1 \
-       ADD_CFLAGS="-target riscv32-unknown-linux-elf -march=rv32im -mabi=ilp32" \
-       -C sysyrt clean libsysy && \
+  ADD_CFLAGS="-target riscv32-unknown-linux-elf -march=rv32im -mabi=ilp32" \
+  -C sysyrt clean libsysy && \
   mkdir -p riscv32 && cp sysyrt/build/libsysy.a riscv32 && \
   rm -rf sysyrt
 
@@ -105,7 +105,7 @@ WORKDIR ${BIN_INSTALL_DIR}
 COPY ${AUTOTEST} .
 RUN git clone --single-branch --depth 1 ${TEST_CASES_REPO_URL} cd-test-cases && \
   make LIB_DIR=${LIB_INSTALL_DIR}/native INSTALL_DIR=${BIN_INSTALL_DIR}/testcases \
-       -C cd-test-cases install -j`nproc` && \
+  -C cd-test-cases install -j`nproc` && \
   rm -rf cd-test-cases
 
 WORKDIR /root

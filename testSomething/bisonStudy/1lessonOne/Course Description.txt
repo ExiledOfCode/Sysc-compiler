@@ -1,0 +1,251 @@
+好的！既然你已经对 Flex 的语法比较熟悉，那我们就专注于 Bison，并且设计一个更贴近零基础、更加循序渐进的教程。这次我会假设你完全不懂 Bison，但能理解 Flex 的词法分析输出（Token），从最基础的概念开始，逐步引导你掌握 Bison 的用法。我们依然会以一个简单计算器为例，但会拆解得更细致，确保你能轻松跟上。
+
+---
+
+### Bison 零基础递进教程（适合熟悉 Flex 的小白）
+
+#### 第一步：认识 Bison 和它的作用
+**目标**：明白 Bison 是什么，为什么需要它。
+
+1. **Bison 的本质**
+   - Bison 是一个工具，它帮你把 Token（Flex 给你的“单词”）按照语法规则组织起来。比如，Flex 把 `3 + 5` 分成 `[NUMBER:3]`、`[PLUS:+]`、`[NUMBER:5]`，而 Bison 判断这些 Token 能不能组成一个合法的数学表达式。
+   - 简单说：Flex 管“拆词”，Bison 管“组句”。
+
+2. **一个比喻**
+   - 想象你在玩拼图：Flex 把图片剪成小块（Token），Bison 告诉你这些小块能不能拼成一幅完整的图（语法规则）。
+
+3. **这次的目标**
+   - 我们要做一个超级简单的程序：输入一行数字（比如 `42`），程序就打印这个数字。后面再慢慢加功能。
+
+---
+
+#### 第二步：动手写第一个 Bison 文件
+**目标**：跑通一个最简单的 Bison 程序，熟悉基本结构。
+
+##### 1. 准备 Flex 文件（你熟悉的部分）
+- 新建 `simple.l`：
+```c
+%{
+#include "simple.tab.h"  // Bison 自动生成的头文件
+%}
+
+%%
+
+[0-9]+    { yylval = atoi(yytext); return NUMBER; }  // 返回数字
+\n        { return EOL; }                            // 返回换行
+[ \t]     { /* 忽略空白 */ }                        // 忽略空格
+.         { printf("未知字符: %s\n", yytext); }     // 其他字符报错
+
+%%
+
+int yywrap() { return 1; }
+```
+- 你应该很明白：这里只是把数字和换行分解成 Token，`yylval` 存数字的值。
+
+##### 2. 写一个超级简单的 Bison 文件
+- 新建 `simple.y`：
+```c
+%{
+#include <stdio.h>
+int yylex();                  // Flex 提供的词法分析函数
+void yyerror(const char *s) { printf("错误: %s\n", s); }
+%}
+
+%token NUMBER EOL  // 定义 Token 类型，和 Flex 对应
+
+%%
+
+program: line        // 程序由一行组成
+;
+
+line: NUMBER EOL { printf("你输入的数字是: %d\n", $1); }  // 打印数字
+;
+
+%%
+
+int main() {
+    yyparse();  // 开始解析
+    return 0;
+}
+```
+- **逐步拆解**：
+  - `%token`：告诉 Bison 有哪些 Token（`NUMBER` 和 `EOL`）。
+  - `program` 和 `line`：语法规则，`program` 是一个 `line`，`line` 是一个数字加换行。
+  - `{ printf(...); }`：当匹配到 `NUMBER EOL` 时，执行这个动作，`$1` 是第一个 Token（NUMBER）的值。
+
+##### 3. 编译和运行
+- 在终端：
+  ```bash
+  flex simple.l          # 生成 lex.yy.c
+  bison -d simple.y      # 生成 simple.tab.c 和 simple.tab.h
+  gcc lex.yy.c simple.tab.c -o simple  # 编译
+  ./simple               # 运行
+  ```
+- 输入测试：
+  ```
+  42
+  你输入的数字是: 42
+  ```
+
+**小结**：你现在有一个能识别数字并打印的程序！Bison 的作用是检查输入是否符合“数字+换行”这个规则。
+
+---
+
+#### 第三步：理解 Bison 的基本结构
+**目标**：弄清楚 Bison 文件的每一部分是什么。
+
+1. **三段式结构**
+   - **声明部分**（`%{ ... %}`）：放 C 代码，比如 `#include` 和函数定义。
+   - **定义部分**（`%token ...`）：定义 Token 和其他配置。
+   - **规则部分**（`%% ... %%`）：写语法规则和动作。
+
+2. **语法规则的写法**
+   - 格式：`名字: 规则 { 动作 };`
+   - 比如 `line: NUMBER EOL { printf(...); };` 意思是：“如果输入是 NUMBER 后面跟 EOL，就打印数字。”
+   - `$1` 是 `NUMBER` 的值，来自 Flex 的 `yylval`。
+
+3. **练习**：
+   - 修改 `simple.y`，把输出改成“你输入的是: XX”，自己编译运行试试。
+
+---
+
+#### 第四步：增加一点复杂性
+**目标**：让程序支持加法（比如 `3 + 5`）。
+
+##### 1. 修改 Flex 文件
+- 编辑 `simple.l`，添加加号：
+```c
+%{
+#include "simple.tab.h"
+%}
+
+%%
+
+[0-9]+    { yylval = atoi(yytext); return NUMBER; }
+"+"       { return PLUS; }                          // 新增加号
+\n        { return EOL; }
+[ \t]     { /* 忽略空白 */ }
+.         { printf("未知字符: %s\n", yytext); }
+
+%%
+
+int yywrap() { return 1; }
+```
+
+##### 2. 修改 Bison 文件
+- 编辑 `simple.y`：
+```c
+%{
+#include <stdio.h>
+int yylex();
+void yyerror(const char *s) { printf("错误: %s\n", s); }
+%}
+
+%token NUMBER PLUS EOL
+
+%%
+
+program: line
+;
+
+line: NUMBER EOL           { printf("你输入的数字是: %d\n", $1); }
+    | NUMBER PLUS NUMBER EOL { printf("结果: %d\n", $1 + $3); }  // 新增加法
+;
+
+%%
+
+int main() {
+    yyparse();
+    return 0;
+}
+```
+- **解释**：
+  - `%token` 里加了 `PLUS`。
+  - `line` 现在有两种可能：单独的数字，或者 `NUMBER + NUMBER`。
+  - `$1 + $3`：`$1` 是第一个 NUMBER，`$3` 是第二个 NUMBER（`$2` 是 PLUS，但我们不用它的值）。
+
+##### 3. 重新编译运行
+- 输入测试：
+  ```
+  3 + 5
+  结果: 8
+  42
+  你输入的数字是: 42
+  ```
+
+**小结**：你学会了让 Bison 处理两种不同的输入模式，并且做简单的计算！
+
+---
+
+#### 第五步：再加点挑战
+**目标**：支持更灵活的表达式（比如 `3 + 5 + 2`）。
+
+1. **修改 Bison 文件**
+- 编辑 `simple.y`：
+```c
+%{
+#include <stdio.h>
+int yylex();
+void yyerror(const char *s) { printf("错误: %s\n", s); }
+%}
+
+%token NUMBER PLUS EOL
+
+%%
+
+program: line
+;
+
+line: exp EOL { printf("结果: %d\n", $1); }
+;
+
+exp: NUMBER         { $$ = $1; }           // 单个数字
+   | exp PLUS NUMBER { $$ = $1 + $3; }     // 表达式加数字
+;
+
+%%
+
+int main() {
+    yyparse();
+    return 0;
+}
+```
+- **关键点**：
+  - 新增 `exp` 规则，表示“表达式”。
+  - `exp: exp PLUS NUMBER` 是递归定义，允许连续加法。
+  - `$$` 是当前规则的结果，赋值为 `$1 + $3`。
+
+2. **测试**：
+  ```
+  3 + 5 + 2
+  结果: 10
+  ```
+
+**小结**：你现在能处理多步加法了！这是 Bison 语法规则的强大之处。
+
+---
+
+#### 第六步：总结与下一步
+**目标**：回顾所学，规划进阶。
+
+1. **你掌握了什么？**
+   - Bison 的基本结构和语法规则写法。
+   - 如何从 Flex 获取 Token 并处理。
+   - 简单的计算逻辑（加法）。
+
+2. **下一步建议**：
+   - **减法**：试着加一个 `-`（MINUS），模仿加法实现。
+   - **调试**：在动作里加 `printf`，看看 `$1`、`$3` 是怎么变化的。
+   - **复杂规则**：尝试支持括号，比如 `(3 + 5)`。
+
+3. **小练习**：
+   - 修改程序，让它支持减法，输入 `5 - 2` 输出 `3`。
+
+---
+
+### 小白白友好提示
+- **别怕出错**：Bison 报错可能有点吓人，多读错误信息，慢慢就懂了。
+- **一步步改**：每次只改一点，跑通了再加新功能。
+- **随时问我**：有任何卡住的地方，我都会帮你！
+
+这次够基础了吗？如果还觉得不够细，我可以再拆得更小步，或者直接帮你调试某个部分！
