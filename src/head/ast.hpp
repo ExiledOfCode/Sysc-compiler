@@ -41,7 +41,7 @@ public:
         std::cout << "fun ";
         std::cout << "@" << ident << "() : ";
         func_type->Dump();
-        std::cout << "{ ";
+        std::cout << "{";
         std::cout << std::endl;
         block->Dump();
         std::cout << "}\n";
