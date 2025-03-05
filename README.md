@@ -18,8 +18,14 @@ git clone https://github.com/pku-minic/sysy-cmake-template.git
 
 常用命令：
 ```sh
+
+# 本地测试的test文件在 docker 容器中的opt/bin/testcase文件夹中
 #测试lv1阶段，使用这个目录下的编译器
+
 autotest -koopa -s lv1 /root/compiler
+
+
+
 ```
 ```sh
 
@@ -27,22 +33,16 @@ autotest -koopa -s lv1 /root/compiler
 rm -r build
 cmake -DCMAKE_BUILD_TYPE=Debug -B build
 cmake --build build --parallel 4
-./build/compiler
+./build/compiler # 运行编译器，尝试是否获取成功
 
 #使用我们的编译器编译hello.c文件
 ./build/compiler -koopa hello.c -o hello.koopa
 
 
-#本地运行IR
+#本地运行koopa IR 文件
 koopac ./hello.koopa | llc --filetype=obj -o hello.o
 clang ./hello.o -L$CDE_LIBRARY_PATH/native -lsysy -o hello
 ./hello
-
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-make
-
 
 
 ```
