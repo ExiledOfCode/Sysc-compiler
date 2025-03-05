@@ -44,12 +44,17 @@ gcc lex.yy.c calc.tab.c -o calc  # 编译
 
 cmake -DCMAKE_BUILD_TYPE=Debug -B build
 cmake --build build
-./compiler  # ./当前目录
+./build/compiler  # ./当前目录
+
+#使用我们的编译器编译hello.c文件
+./build/compiler -koopa hello.c -o hello.koopa
+
 
 mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug
 make
+
 
 ```
 
