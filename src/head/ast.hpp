@@ -20,10 +20,7 @@ public:
     }
 
     void Dump() const override {
-        std::cout << "CompUnitAST { ";
         func_def->Dump();
-        std::cout << " }";
-        std::cout << std::endl;
     }
 };
 
@@ -41,11 +38,13 @@ public:
     }
 
     void Dump() const override {
-        std::cout << "FuncDefAST { ";
+        std::cout << "fun ";
+        std::cout << "@" << ident << "() : ";
         func_type->Dump();
-        std::cout << ", " << ident << ", ";
+        std::cout << "{ ";
+        std::cout << std::endl;
         block->Dump();
-        std::cout << " }";
+        std::cout << "}\n";
     }
 };
 
@@ -58,7 +57,8 @@ public:
     }
 
     void Dump() const override {
-        std::cout << "FuncTypeAST { " << type << " }";
+        if (this->type == "int")
+            std::cout << "i32 ";
     }
 };
 
@@ -71,9 +71,8 @@ public:
     }
 
     void Dump() const override {
-        std::cout << "BlockAST { ";
+        std::cout << "\%entry:\n";
         stmt->Dump();
-        std::cout << " }";
     }
 };
 
@@ -84,8 +83,7 @@ public:
     // 构造函数
     StmtAST(int num) : number(num) {
     }
-
     void Dump() const override {
-        std::cout << "StmtAST { " << number << " }";
+        std::cout << "  ret " << number << std::endl;
     }
 };

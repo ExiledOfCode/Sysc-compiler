@@ -1,14 +1,14 @@
 %code requires {
   #include <memory>
   #include <string>
-  #include "ast.hpp"
+  #include "head/ast.hpp"
 }
 
 %{
 #include <iostream>
 #include <memory>
 #include <string>
-#include "ast.hpp"
+#include "head/ast.hpp"
 int yylex();
 void yyerror(std::unique_ptr<BaseAST>& ast, const char *s);
 using namespace std;

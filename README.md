@@ -18,9 +18,36 @@ git clone https://github.com/pku-minic/sysy-cmake-template.git
 
 常用命令：
 ```sh
-cd sysy-make-template
+#测试lv1阶段，使用这个目录下的编译器
+autotest -koopa -s lv1 /root/compiler
+```
+```sh
+
+# 获取编译器
+rm -r build
+cmake -DCMAKE_BUILD_TYPE=Debug -B build
+cmake --build build --parallel 4
+./build/compiler
+
+#使用我们的编译器编译hello.c文件
+./build/compiler -koopa hello.c -o hello.koopa
 
 
+#本地运行IR
+koopac ./hello.koopa | llc --filetype=obj -o hello.o
+clang ./hello.o -L$CDE_LIBRARY_PATH/native -lsysy -o hello
+./hello
+
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+make
+
+
+
+```
+
+```sh
 # 进入dock并且进入flex学习文档
 docker run -it --rm -v .:/root/compiler maxxing/compiler-dev bash
 cd compiler
@@ -40,24 +67,7 @@ bison -d calc.y       # 假设文件名为calc.y  生成 calc.tab.c 和 calc.tab
 gcc lex.yy.c calc.tab.c -o calc  # 编译
 ./calc                # 运行
 
-
-
-cmake -DCMAKE_BUILD_TYPE=Debug -B build
-cmake --build build
-./build/compiler  # ./当前目录
-
-#使用我们的编译器编译hello.c文件
-./build/compiler -koopa hello.c -o hello.koopa
-
-
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-make
-
-
 ```
-
 CMake 将在 `build` 目录下生成名为 `compiler` 的可执行文件.
 
 如在此基础上进行开发, 你需要重新初始化 Git 仓库:
