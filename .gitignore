@@ -1,9 +1,11 @@
 *.DS_Store
 /build
 /temporary
-hello.c
 .vscode
 koopa.h
+*.s
+*.koopa
+*.c
 
 
 

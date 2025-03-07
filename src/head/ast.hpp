@@ -4,12 +4,15 @@
 #include <memory>
 #include <string>
 
+extern int TemValId; // 声明全局变量，不初始化
+
 class BaseAST {
 public:
     virtual ~BaseAST() = default;
-    virtual void Dump() const = 0;
+    virtual int Dump() const = 0; // 修改为 int 返回值
 };
 
+// CompUnit ::= FuncDef;
 class CompUnitAST : public BaseAST {
 public:
     std::unique_ptr<BaseAST> func_def;
@@ -19,11 +22,13 @@ public:
         : func_def(std::move(func_def_ptr)) {
     }
 
-    void Dump() const override {
+    int Dump() const override { // 修改为 int 返回值
         func_def->Dump();
+        return 0; // 添加默认返回值
     }
 };
 
+// FuncDef ::= FuncType IDENT "(" ")" Block;
 class FuncDefAST : public BaseAST {
 public:
     std::unique_ptr<BaseAST> func_type;
@@ -37,7 +42,7 @@ public:
           block(std::move(block_ptr)) {
     }
 
-    void Dump() const override {
+    int Dump() const override { // 修改为 int 返回值
         std::cout << "fun ";
         std::cout << "@" << ident << "() : ";
         func_type->Dump();
@@ -45,9 +50,11 @@ public:
         std::cout << std::endl;
         block->Dump();
         std::cout << "}\n";
+        return 0; // 添加默认返回值
     }
 };
 
+// FuncType ::= "int";
 class FuncTypeAST : public BaseAST {
 public:
     std::string type;
@@ -56,12 +63,14 @@ public:
     FuncTypeAST(std::string type_name) : type(std::move(type_name)) {
     }
 
-    void Dump() const override {
+    int Dump() const override { // 修改为 int 返回值
         if (this->type == "int")
             std::cout << "i32 ";
+        return 0; // 添加默认返回值
     }
 };
 
+// Block ::= "{" Stmt "}";
 class BlockAST : public BaseAST {
 public:
     std::unique_ptr<BaseAST> stmt;
@@ -70,20 +79,24 @@ public:
     BlockAST(std::unique_ptr<BaseAST> stmt_ptr) : stmt(std::move(stmt_ptr)) {
     }
 
-    void Dump() const override {
+    int Dump() const override { // 修改为 int 返回值
         std::cout << "\%entry:\n";
         stmt->Dump();
+        return 0; // 添加默认返回值
     }
 };
 
+// Stmt ::= "return" Exp ";";
 class StmtAST : public BaseAST {
 public:
-    int number;
+    std::unique_ptr<BaseAST> exp;
 
-    // 构造函数
-    StmtAST(int num) : number(num) {
+    StmtAST(std::unique_ptr<BaseAST> exp_ptr) : exp(std::move(exp_ptr)) {
     }
-    void Dump() const override {
-        std::cout << "  ret " << number << std::endl;
+
+    int Dump() const override {
+        int exp_id = exp->Dump();
+        std::cout << "ret %" << exp_id << "\n";
+        return 0; // Stmt 的返回值无意义
     }
 };

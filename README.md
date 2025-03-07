@@ -27,6 +27,10 @@ cd compiler
 autotest -koopa -s lv1 /root/compiler
 autotest -riscv -s lv1 /root/compiler
 
+autotest -koopa -s lv3 /root/compiler
+autotest -riscv -s lv3 /root/compiler
+
+
 
 
 ```
@@ -40,6 +44,7 @@ cmake --build build --parallel 4
 
 #使用我们的编译器编译hello.c文件
 ./build/compiler -koopa hello.c -o hello.koopa
+
 ./build/compiler -riscv hello.c -o hello.s
 
 

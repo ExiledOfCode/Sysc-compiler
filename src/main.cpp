@@ -1,4 +1,5 @@
 #include "head/ast.hpp"
+#include "head/exp.hpp"
 #include "head/koopa.h"
 #include "head/koopa_to_riscv.hpp"
 #include <cassert>
@@ -21,6 +22,9 @@ cmake --build build --parallel 4   # 增量构建
 // 其次, 因为这个文件不是我们自己写的, 而是被 Bison 生成出来的
 // 你的代码编辑器/IDE 很可能找不到这个文件, 然后会给你报错 (虽然编译不会出错)
 // 看起来会很烦人, 于是干脆采用这种看起来 dirty 但实际很有效的手段
+
+int TemValId = 0; // 全局临时变量编号
+
 extern FILE *yyin;
 extern int yyparse(unique_ptr<BaseAST> &ast);
 void getIR(std::unique_ptr<BaseAST> &ast, const char *output_file) {
@@ -66,9 +70,7 @@ void getRiscv(std::unique_ptr<BaseAST> &ast, const char *output_file) {
     // 第四步：清理内存
     koopa_delete_raw_program_builder(builder);
 }
-// 从 AST 生成 Koopa IR 并转换为 RISC-V 汇编
-void test(std::unique_ptr<BaseAST> &ast, const char *output_file) {
-}
+
 int main(int argc, const char *argv[]) {
     // 检查命令行参数
     assert(argc == 5);
