@@ -85,8 +85,8 @@ public:
                           << "\n";
             } else if (unary_op == "!") {
                 // 逻辑非: %n = eq 0 , operand
-                std::cout << "%" << TemValId++ << " = eq 0, %" << operand_id
-                          << "\n";
+                std::cout << "%" << TemValId++ << " = eq %" << operand_id
+                          << ", 0" << "\n";
             }
             return nowId;
         }

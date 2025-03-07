@@ -3,9 +3,7 @@
 /temporary
 .vscode
 koopa.h
+
 *.s
-*.koopa
-*.c
-
-
-
+hello.koopa
+hello.c
