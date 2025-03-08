@@ -24,6 +24,10 @@ cd compiler
 
 # 本地测试的test文件在 docker 容器中的opt/bin/testcase文件夹中
 #指令格式：autotest -koopa|-riscv -s测试lv1阶段 使用这个目录下的编译器
+
+autotest -koopa -s lv4 /root/compiler
+autotest -riscv -s lv4 /root/compiler
+
 autotest -koopa -s lv1 /root/compiler
 autotest -riscv -s lv1 /root/compiler
 
