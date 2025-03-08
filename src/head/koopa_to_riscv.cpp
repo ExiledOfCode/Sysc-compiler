@@ -44,19 +44,43 @@ void generate_riscv(const koopa_raw_function_t &func, std::ostream &out) {
     out << "  .globl " << (func->name + 1) << "\n"; // 跳过 '@' 前缀
     out << (func->name + 1) << ":\n";
 
-    // 遍历基本块，先生成所有指令，确定栈大小
+    // 在函数入口分配栈空间
+    reset_state(); // 重置栈状态
     for (size_t i = 0; i < func->bbs.len; ++i) {
         assert(func->bbs.kind == KOOPA_RSIK_BASIC_BLOCK);
+        koopa_raw_basic_block_t bb =
+            (koopa_raw_basic_block_t)func->bbs.buffer[i];
+        // 先遍历所有指令以确定栈大小
+        for (size_t j = 0; j < bb->insts.len; ++j) {
+            koopa_raw_value_t value = (koopa_raw_value_t)bb->insts.buffer[j];
+            if (value->kind.tag == KOOPA_RVT_BINARY ||
+                value->kind.tag == KOOPA_RVT_RETURN) {
+                allocate_stack(value); // 为每个计算结果预分配栈空间
+            }
+        }
+    }
+    int total_stack_size = (stack_offset + 15) & ~15; // 16 字节对齐
+    if (total_stack_size > 0) {
+        out << "  addi sp, sp, -" << total_stack_size << "\n";
+        out << "  sw ra, " << (total_stack_size - 4)
+            << "(sp)\n"; // 保存返回地址
+    }
+
+    // 生成基本块代码
+    for (size_t i = 0; i < func->bbs.len; ++i) {
         koopa_raw_basic_block_t bb =
             (koopa_raw_basic_block_t)func->bbs.buffer[i];
         generate_riscv(bb, out);
     }
 
-    // 在函数末尾分配和释放栈空间（这里简化处理，实际应在入口分配）
+    // 函数出口恢复栈（简化处理，实际应由 return 指令控制）
 }
 
 // 访问基本块
 void generate_riscv(const koopa_raw_basic_block_t &bb, std::ostream &out) {
+    if (bb->name && strlen(bb->name) > 0) {
+        out << (bb->name + 1) << ":\n"; // 跳过 '%' 前缀
+    }
     for (size_t i = 0; i < bb->insts.len; ++i) {
         assert(bb->insts.kind == KOOPA_RSIK_VALUE);
         koopa_raw_value_t value = (koopa_raw_value_t)bb->insts.buffer[i];
@@ -92,17 +116,30 @@ void generate_riscv(const koopa_raw_return_t &ret, std::ostream &out) {
             out << "  lw a0, " << offset << "(sp)\n"; // 从栈加载返回值
         }
     }
-    int total_stack_size = stack_offset + 4;                  // 包括返回地址
-    out << "  addi sp, sp, -" << total_stack_size << "\n";    // 分配栈空间
-    out << "  sw ra, " << (total_stack_size - 4) << "(sp)\n"; // 保存返回地址
-    out << "  lw ra, " << (total_stack_size - 4) << "(sp)\n"; // 恢复返回地址
-    out << "  addi sp, sp, " << total_stack_size << "\n";     // 释放栈空间
+    int total_stack_size = (stack_offset + 15) & ~15; // 16 字节对齐
+    if (total_stack_size > 0) {
+        out << "  lw ra, " << (total_stack_size - 4)
+            << "(sp)\n";                                      // 恢复返回地址
+        out << "  addi sp, sp, " << total_stack_size << "\n"; // 释放栈空间
+    }
     out << "  ret\n";
 }
 
 // 访问 integer
 void generate_riscv(const koopa_raw_integer_t &integer, std::ostream &out) {
     out << "  li a0, " << integer.value << "\n";
+}
+
+// 加载操作数到寄存器
+void load_operand(const koopa_raw_value_t &operand, const char *reg,
+                  std::ostream &out) {
+    if (operand->kind.tag == KOOPA_RVT_INTEGER) {
+        out << "  li " << reg << ", " << operand->kind.data.integer.value
+            << "\n";
+    } else {
+        int offset = get_stack_offset(operand);
+        out << "  lw " << reg << ", " << offset << "(sp)\n";
+    }
 }
 
 // 访问 binary 指令
@@ -112,34 +149,21 @@ void generate_riscv(const koopa_raw_binary_t &binary,
     koopa_raw_value_t rhs = binary.rhs;
 
     // 为结果分配栈空间
-    int result_offset = allocate_stack(value);
+    int result_offset = get_stack_offset(value); // 应该已经在函数入口分配
 
     // 加载左操作数到 t0
-    if (lhs->kind.tag == KOOPA_RVT_INTEGER) {
-        out << "  li t0, " << lhs->kind.data.integer.value << "\n";
-    } else {
-        int lhs_offset = get_stack_offset(lhs);
-        out << "  lw t0, " << lhs_offset << "(sp)\n";
-    }
+    load_operand(lhs, "t0", out);
 
     // 加载右操作数到 t1
-    if (rhs->kind.tag == KOOPA_RVT_INTEGER) {
-        out << "  li t1, " << rhs->kind.data.integer.value << "\n";
-    } else {
-        int rhs_offset = get_stack_offset(rhs);
-        out << "  lw t1, " << rhs_offset << "(sp)\n";
-    }
+    load_operand(rhs, "t1", out);
 
-    // 根据操作符生成相应的 RISC-V 指令
+    // 根据操作符生成 RISC-V 指令
     switch (binary.op) {
-    case KOOPA_RBO_SUB:
-        out << "  sub t2, t0, t1\n";
-        break;
-    case KOOPA_RBO_EQ:            // 用于一元运算符 "!"
-        out << "  seqz t2, t1\n"; // t2 = (t1 == 0) ? 1 : 0
-        break;
     case KOOPA_RBO_ADD:
         out << "  add t2, t0, t1\n";
+        break;
+    case KOOPA_RBO_SUB:
+        out << "  sub t2, t0, t1\n";
         break;
     case KOOPA_RBO_MUL:
         out << "  mul t2, t0, t1\n";
@@ -149,6 +173,34 @@ void generate_riscv(const koopa_raw_binary_t &binary,
         break;
     case KOOPA_RBO_MOD:
         out << "  rem t2, t0, t1\n";
+        break;
+    case KOOPA_RBO_AND:
+        out << "  and t2, t0, t1\n";
+        break;
+    case KOOPA_RBO_OR:
+        out << "  or t2, t0, t1\n";
+        break;
+    case KOOPA_RBO_EQ:
+        out << "  sub t2, t0, t1\n"; // t2 = t0 - t1
+        out << "  seqz t2, t2\n";    // t2 = (t2 == 0) ? 1 : 0
+        break;
+    case KOOPA_RBO_NOT_EQ:
+        out << "  sub t2, t0, t1\n"; // t2 = t0 - t1
+        out << "  snez t2, t2\n";    // t2 = (t2 != 0) ? 1 : 0
+        break;
+    case KOOPA_RBO_GT:
+        out << "  sgt t2, t0, t1\n"; // t2 = (t0 > t1) ? 1 : 0
+        break;
+    case KOOPA_RBO_LT:
+        out << "  slt t2, t0, t1\n"; // t2 = (t0 < t1) ? 1 : 0
+        break;
+    case KOOPA_RBO_GE:
+        out << "  slt t2, t0, t1\n"; // t2 = (t0 < t1) ? 1 : 0
+        out << "  xori t2, t2, 1\n"; // t2 = !t2 (t0 >= t1)
+        break;
+    case KOOPA_RBO_LE:
+        out << "  sgt t2, t0, t1\n"; // t2 = (t0 > t1) ? 1 : 0
+        out << "  xori t2, t2, 1\n"; // t2 = !t2 (t0 <= t1)
         break;
     default:
         assert(false); // 未处理的操作符

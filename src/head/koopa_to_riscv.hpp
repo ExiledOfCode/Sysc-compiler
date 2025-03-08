@@ -2,6 +2,7 @@
 #include "ast.hpp"
 #include "koopa.h"
 #include <cassert>
+#include <cstring>
 #include <iostream>
 #include <ostream>
 #include <string>

@@ -36,7 +36,7 @@ autotest -riscv -s lv3 /root/compiler
 # 获取编译器
 rm -r build
 cmake -DCMAKE_BUILD_TYPE=Debug -B build
-cmake --build build --parallel 4
+cmake --build build --parallel 8
 ./build/compiler # 运行编译器，尝试是否获取成功
 
 #使用我们的编译器编译hello.c文件

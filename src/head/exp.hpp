@@ -112,6 +112,176 @@ public:
         }
     }
 };
+
+// RelExp ::= AddExp | RelExp ("<" | ">" | "<=" | ">=") AddExp;
+class RelExpAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> add_exp;       // 用于单一 AddExp
+    std::unique_ptr<BaseAST> rel_exp;       // 用于 RelExp（递归）
+    std::unique_ptr<BaseAST> add_exp_right; // 右侧的 AddExp
+    std::string op;                         // 操作符：<、>、<= 或 >=
+    bool is_add;                            // 区分是单一 AddExp 还是比较操作
+
+    // 构造函数 1：单一 AddExp
+    RelExpAST(std::unique_ptr<BaseAST> add_exp_ptr)
+        : add_exp(std::move(add_exp_ptr)), rel_exp(nullptr),
+          add_exp_right(nullptr), is_add(true) {
+    }
+
+    // 构造函数 2：RelExp op AddExp
+    RelExpAST(std::unique_ptr<BaseAST> rel_exp_ptr, std::string operation,
+              std::unique_ptr<BaseAST> add_exp_right_ptr)
+        : add_exp(nullptr), rel_exp(std::move(rel_exp_ptr)),
+          add_exp_right(std::move(add_exp_right_ptr)), op(std::move(operation)),
+          is_add(false) {
+    }
+
+    int Dump() const override {
+        if (is_add) {
+            return add_exp->Dump();
+        } else {
+            int left_id = rel_exp->Dump();
+            int right_id = add_exp_right->Dump();
+            int nowId = TemValId;
+
+            if (op == "<") {
+                std::cout << "%" << TemValId++ << " = lt %" << left_id << ", %"
+                          << right_id << "\n";
+            } else if (op == ">") {
+                std::cout << "%" << TemValId++ << " = gt %" << left_id << ", %"
+                          << right_id << "\n";
+            } else if (op == "<=") {
+                std::cout << "%" << TemValId++ << " = le %" << left_id << ", %"
+                          << right_id << "\n";
+            } else if (op == ">=") {
+                std::cout << "%" << TemValId++ << " = ge %" << left_id << ", %"
+                          << right_id << "\n";
+            }
+            return nowId;
+        }
+    }
+};
+
+// EqExp ::= RelExp | EqExp ("==" | "!=") RelExp;
+class EqExpAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> rel_exp;       // 用于单一 RelExp
+    std::unique_ptr<BaseAST> eq_exp;        // 用于 EqExp（递归）
+    std::unique_ptr<BaseAST> rel_exp_right; // 右侧的 RelExp
+    std::string op;                         // 操作符：== 或 !=
+    bool is_rel;                            // 区分是单一 RelExp 还是相等性操作
+
+    // 构造函数 1：单一 RelExp
+    EqExpAST(std::unique_ptr<BaseAST> rel_exp_ptr)
+        : rel_exp(std::move(rel_exp_ptr)), eq_exp(nullptr),
+          rel_exp_right(nullptr), is_rel(true) {
+    }
+
+    // 构造函数 2：EqExp op RelExp
+    EqExpAST(std::unique_ptr<BaseAST> eq_exp_ptr, std::string operation,
+             std::unique_ptr<BaseAST> rel_exp_right_ptr)
+        : rel_exp(nullptr), eq_exp(std::move(eq_exp_ptr)),
+          rel_exp_right(std::move(rel_exp_right_ptr)), op(std::move(operation)),
+          is_rel(false) {
+    }
+
+    int Dump() const override {
+        if (is_rel) {
+            return rel_exp->Dump();
+        } else {
+            int left_id = eq_exp->Dump();
+            int right_id = rel_exp_right->Dump();
+            int nowId = TemValId;
+
+            if (op == "==") {
+                std::cout << "%" << TemValId++ << " = eq %" << left_id << ", %"
+                          << right_id << "\n";
+            } else if (op == "!=") {
+                std::cout << "%" << TemValId++ << " = ne %" << left_id << ", %"
+                          << right_id << "\n";
+            }
+            return nowId;
+        }
+    }
+};
+
+// LAndExp ::= EqExp | LAndExp "&&" EqExp;
+class LAndExpAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> eq_exp;       // 用于单一 EqExp
+    std::unique_ptr<BaseAST> land_exp;     // 用于 LAndExp（递归）
+    std::unique_ptr<BaseAST> eq_exp_right; // 右侧的 EqExp
+    bool is_eq;                            // 区分是单一 EqExp 还是逻辑与操作
+
+    // 构造函数 1：单一 EqExp
+    LAndExpAST(std::unique_ptr<BaseAST> eq_exp_ptr)
+        : eq_exp(std::move(eq_exp_ptr)), land_exp(nullptr),
+          eq_exp_right(nullptr), is_eq(true) {
+    }
+
+    // 构造函数 2：LAndExp && EqExp
+    LAndExpAST(std::unique_ptr<BaseAST> land_exp_ptr,
+               std::unique_ptr<BaseAST> eq_exp_right_ptr)
+        : eq_exp(nullptr), land_exp(std::move(land_exp_ptr)),
+          eq_exp_right(std::move(eq_exp_right_ptr)), is_eq(false) {
+    }
+
+    int Dump() const override {
+        if (is_eq) {
+            return eq_exp->Dump();
+        } else {
+            int left_id = land_exp->Dump();
+            int right_id = eq_exp_right->Dump();
+            int nowId = TemValId;
+            // Koopa IR 使用 ne 0 来确保布尔值
+            std::cout << "%" << TemValId++ << " = ne 0, %" << left_id << "\n";
+            int temp_id = TemValId;
+            std::cout << "%" << TemValId++ << " = ne 0, %" << right_id << "\n";
+            std::cout << "%" << TemValId++ << " = and %" << (temp_id - 1)
+                      << ", %" << temp_id << "\n";
+            return nowId;
+        }
+    }
+};
+
+// LOrExp ::= LAndExp | LOrExp "||" LAndExp;
+class LOrExpAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> land_exp;       // 用于单一 LAndExp
+    std::unique_ptr<BaseAST> lor_exp;        // 用于 LOrExp（递归）
+    std::unique_ptr<BaseAST> land_exp_right; // 右侧的 LAndExp
+    bool is_land; // 区分是单一 LAndExp 还是逻辑或操作
+
+    // 构造函数 1：单一 LAndExp
+    LOrExpAST(std::unique_ptr<BaseAST> land_exp_ptr)
+        : land_exp(std::move(land_exp_ptr)), lor_exp(nullptr),
+          land_exp_right(nullptr), is_land(true) {
+    }
+
+    // 构造函数 2：LOrExp || LAndExp
+    LOrExpAST(std::unique_ptr<BaseAST> lor_exp_ptr,
+              std::unique_ptr<BaseAST> land_exp_right_ptr)
+        : land_exp(nullptr), lor_exp(std::move(lor_exp_ptr)),
+          land_exp_right(std::move(land_exp_right_ptr)), is_land(false) {
+    }
+
+    int Dump() const override {
+        if (is_land) {
+            return land_exp->Dump();
+        } else {
+            int left_id = lor_exp->Dump();
+            int right_id = land_exp_right->Dump();
+            int nowId = TemValId;
+            // Koopa IR 使用 ne 0 来确保布尔值
+            std::cout << "%" << TemValId++ << " = ne 0, %" << left_id << "\n";
+            int temp_id = TemValId;
+            std::cout << "%" << TemValId++ << " = ne 0, %" << right_id << "\n";
+            std::cout << "%" << TemValId++ << " = or %" << (temp_id - 1)
+                      << ", %" << temp_id << "\n";
+            return nowId;
+        }
+    }
+};
 // Number ::= INT_CONST;
 class NumberAST : public BaseAST {
 public:
