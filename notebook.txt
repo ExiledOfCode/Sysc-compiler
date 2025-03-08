@@ -1,0 +1,215 @@
+指令1类型图：add %0 0,0
+{
+    ty: <指向 i32 类型>,           // 类型是 32 位整数
+    name: "%0",                     // 名称是 "%0"
+    used_by: { buffer: [<指向 %1 的 koopa_raw_value_t>], len: 1, kind: KOOPA_RSIK_VALUE }, // 被 %1 使用
+    kind: {
+        tag: KOOPA_RVT_BINARY,      // 二元运算
+        data: {
+            binary: {
+                op: KOOPA_RBO_ADD,  // 加法运算
+                lhs: <指向值为 0 的 koopa_raw_value_t>,
+                rhs: <指向值为 0 的 koopa_raw_value_t>
+            }
+        }
+    }
+}
+左右值的类型图：
+{
+    ty: <指向 i32 类型>,
+    name: null,
+    used_by: { buffer: [<指向 %0 的 koopa_raw_value_t>], len: 1, kind: KOOPA_RSIK_VALUE },
+    kind: {
+        tag: KOOPA_RVT_INTEGER, // 整数常量
+        data: {
+            integer: {
+                value: 0
+            }
+        }
+    }
+}
+{
+  koopa_raw_program_t: {                              // 整个 Koopa IR 程序
+    values: {                                         // 全局变量列表
+      koopa_raw_slice_t: {
+        buffer: [<koopa_raw_value_t>],                // 指向全局值
+        len: uint32_t,
+        kind: KOOPA_RSIK_VALUE
+      }
+    },
+    funcs: {                                          // 函数列表
+      koopa_raw_slice_t: {
+        buffer: [<koopa_raw_function_t>],             // 指向函数
+        len: uint32_t,
+        kind: KOOPA_RSIK_FUNCTION
+      }
+    }
+  },
+  koopa_raw_function_t: {                             // 函数
+    ty: <koopa_raw_type_t>,                           // 函数类型
+    name: const char*,
+    params: {                                         // 参数列表
+      koopa_raw_slice_t: {
+        buffer: [<koopa_raw_value_t>],                // 指向参数值
+        len: uint32_t,
+        kind: KOOPA_RSIK_VALUE
+      }
+    },
+    bbs: {                                            // 基本块列表
+      koopa_raw_slice_t: {
+        buffer: [<koopa_raw_basic_block_t>],          // 指向基本块
+        len: uint32_t,
+        kind: KOOPA_RSIK_BASIC_BLOCK
+      }
+    }
+  },
+  koopa_raw_basic_block_t: {                          // 基本块
+    name: const char*,
+    params: {                                         // 参数列表
+      koopa_raw_slice_t: {
+        buffer: [<koopa_raw_value_t>],                // 指向参数值
+        len: uint32_t,
+        kind: KOOPA_RSIK_VALUE
+      }
+    },
+    used_by: {                                        // 使用此块的值
+      koopa_raw_slice_t: {
+        buffer: [<koopa_raw_value_t>],                // 指向使用此块的值
+        len: uint32_t,
+        kind: KOOPA_RSIK_VALUE
+      }
+    },
+    insts: {                                          // 指令列表
+      koopa_raw_slice_t: {
+        buffer: [<koopa_raw_value_t>],                // 指向指令
+        len: uint32_t,
+        kind: KOOPA_RSIK_VALUE
+      }
+    }
+  },
+  koopa_raw_value_t: {                                // 值（常量或指令）
+    ty: <koopa_raw_type_t>,                           // 值类型
+    name: const char*,
+    used_by: {                                        // 使用此值的其他值
+      koopa_raw_slice_t: {
+        buffer: [<koopa_raw_value_t>],                // 指向使用此值的其他值
+        len: uint32_t,
+        kind: KOOPA_RSIK_VALUE
+      }
+    },
+    kind: {                                           // 值的具体种类
+      koopa_raw_value_kind_t: {
+        tag: koopa_raw_value_tag_t,                   // 类型标签
+        data: {                                       // 根据 tag 选择具体数据
+          koopa_raw_integer_t: {                      // 整数常量
+            value: int32_t
+          },
+          koopa_raw_aggregate_t: {                    // 聚合常量
+            elems: {
+              koopa_raw_slice_t: {
+                buffer: [<koopa_raw_value_t>],          // 指向元素
+                len: uint32_t,
+                kind: KOOPA_RSIK_VALUE
+              }
+            }
+          },
+          koopa_raw_func_arg_ref_t: {                 // 函数参数引用
+            index: size_t
+          },
+          koopa_raw_block_arg_ref_t: {                // 基本块参数引用
+            index: size_t
+          },
+          koopa_raw_global_alloc_t: {                 // 全局内存分配
+            init: <koopa_raw_value_t>                 // 初始化值
+          },
+          koopa_raw_load_t: {                         // 内存加载
+            src: <koopa_raw_value_t>                  // 源地址
+          },
+          koopa_raw_store_t: {                        // 内存存储
+            value: <koopa_raw_value_t>,               // 要存储的值
+            dest: <koopa_raw_value_t>                 // 目标地址
+          },
+          koopa_raw_get_ptr_t: {                      // 指针计算
+            src: <koopa_raw_value_t>,                 // 源地址
+            index: <koopa_raw_value_t>                // 索引
+          },
+          koopa_raw_get_elem_ptr_t: {                 // 元素指针计算
+            src: <koopa_raw_value_t>,                 // 源地址
+            index: <koopa_raw_value_t>                // 索引
+          },
+          koopa_raw_binary_t: {                       // 二元运算
+            op: koopa_raw_binary_op_t,                // 操作符
+            lhs: <koopa_raw_value_t>,                 // 左操作数
+            rhs: <koopa_raw_value_t>                  // 右操作数
+          },
+          koopa_raw_branch_t: {                       // 条件分支
+            cond: <koopa_raw_value_t>,                // 条件
+            true_bb: <koopa_raw_basic_block_t>,       // 真分支目标
+            false_bb: <koopa_raw_basic_block_t>,      // 假分支目标
+            true_args: {
+              koopa_raw_slice_t: {
+                buffer: [<koopa_raw_value_t>],          // 真分支参数
+                len: uint32_t,
+                kind: KOOPA_RSIK_VALUE
+              }
+            },
+            false_args: {
+              koopa_raw_slice_t: {
+                buffer: [<koopa_raw_value_t>],          // 假分支参数
+                len: uint32_t,
+                kind: KOOPA_RSIK_VALUE
+              }
+            }
+          },
+          koopa_raw_jump_t: {                         // 无条件跳转
+            target: <koopa_raw_basic_block_t>,        // 跳转目标
+            args: {
+              koopa_raw_slice_t: {
+                buffer: [<koopa_raw_value_t>],          // 跳转参数
+                len: uint32_t,
+                kind: KOOPA_RSIK_VALUE
+              }
+            }
+          },
+          koopa_raw_call_t: {                         // 函数调用
+            callee: <koopa_raw_function_t>,           // 被调用函数
+            args: {
+              koopa_raw_slice_t: {
+                buffer: [<koopa_raw_value_t>],          // 调用参数
+                len: uint32_t,
+                kind: KOOPA_RSIK_VALUE
+              }
+            }
+          },
+          koopa_raw_return_t: {                       // 返回指令
+            value: <koopa_raw_value_t>                // 返回值（可能为 null）
+          }
+        }
+      }
+    }
+  },
+  koopa_raw_type_t: {                                 // 类型
+    koopa_raw_type_kind_t: {
+      tag: koopa_raw_type_tag_t,                      // 类型标签
+      data: {                                         // 根据 tag 选择具体数据
+        array: {
+          base: <koopa_raw_type_t>,                   // 数组基类型
+          len: size_t                                 // 数组长度
+        },
+        pointer: {
+          base: <koopa_raw_type_t>                    // 指针基类型
+        },
+        function: {
+          params: {
+            koopa_raw_slice_t: {
+              buffer: [<koopa_raw_type_t>],             // 参数类型列表
+              len: uint32_t,
+              kind: KOOPA_RSIK_TYPE
+            }
+          },
+          ret: <koopa_raw_type_t>                     // 返回类型
+        }
+      }
+    }
+  }
+}
