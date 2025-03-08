@@ -2,7 +2,7 @@
   #include <memory>
   #include <string>
   #include "head/ast.hpp"  // 假设 CompUnitAST, FuncDefAST 等定义在此文件中
-  #include "head/exp.hpp"  // ExpAST, UnaryExpAST 等定义在此文件中
+  #include "head/exp.hpp"  // ExpAST, UnaryExpAST, AddExpAST 等定义在此文件中
 }
 
 %{
@@ -18,6 +18,8 @@ using namespace std;
 // 定义常量提高可读性
 #define IS_NUMBER true
 #define IS_EXP false
+#define IS_UNARY true
+#define IS_MUL true
 %}
 
 %parse-param {std::unique_ptr<BaseAST>& ast}
@@ -32,11 +34,14 @@ using namespace std;
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
-%type <ast_val> FuncDef FuncType Block Stmt
+%type <ast_val> CompUnit FuncDef FuncType Block Stmt
 %type <ast_val> Exp PrimaryExp UnaryExp UnaryOp Number
+%type <ast_val> AddExp MulExp
 
-// 定义一元操作符的优先级和结合性
-%right '+' '-' '!'  // 右结合性，符合一元操作符的语义
+// 定义操作符的优先级和结合性
+%left '+' '-'          // 加减法，左结合
+%left '*' '/' '%'      // 乘除模，左结合，优先级高于加减
+%right UNARY_OP        // 一元操作符，右结合，优先级最高
 
 %%
 
@@ -54,7 +59,7 @@ FuncDef
         *$2,                      // IDENT 解引用
         unique_ptr<BaseAST>($5)   // Block 的所有权转移
     );
-    delete $2;  // 释放 IDENT 的内存
+    delete $2;  // 释放 IDENT 的内存,因为$2已经深拷贝了，所以可以释放
   }
   ;
 
@@ -77,8 +82,55 @@ Stmt
   ;
 
 Exp
+  : AddExp {
+    $$ = new ExpAST(unique_ptr<BaseAST>($1));    // 创建 ExpAST，包装 AddExp
+  }
+  ;
+
+AddExp
+  : MulExp {
+    $$ = new AddExpAST(unique_ptr<BaseAST>($1));  // 单一 MulExp
+  }
+  | AddExp '+' MulExp {
+    $$ = new AddExpAST(
+        unique_ptr<BaseAST>($1),       // 左侧 AddExp
+        "+",                           // 操作符
+        unique_ptr<BaseAST>($3)        // 右侧 MulExp
+    );
+  }
+  | AddExp '-' MulExp {
+    $$ = new AddExpAST(
+        unique_ptr<BaseAST>($1),       // 左侧 AddExp
+        "-",                           // 操作符
+        unique_ptr<BaseAST>($3)        // 右侧 MulExp
+    );
+  }
+  ;
+
+MulExp
   : UnaryExp {
-    $$ = new ExpAST(unique_ptr<BaseAST>($1));    // 创建 ExpAST
+    $$ = new MulExpAST(unique_ptr<BaseAST>($1));  // 单一 UnaryExp
+  }
+  | MulExp '*' UnaryExp {
+    $$ = new MulExpAST(
+        unique_ptr<BaseAST>($1),       // 左侧 MulExp
+        "*",                           // 操作符
+        unique_ptr<BaseAST>($3)        // 右侧 UnaryExp
+    );
+  }
+  | MulExp '/' UnaryExp {
+    $$ = new MulExpAST(
+        unique_ptr<BaseAST>($1),       // 左侧 MulExp
+        "/",                           // 操作符
+        unique_ptr<BaseAST>($3)        // 右侧 UnaryExp
+    );
+  }
+  | MulExp '%' UnaryExp {
+    $$ = new MulExpAST(
+        unique_ptr<BaseAST>($1),       // 左侧 MulExp
+        "%",                           // 操作符
+        unique_ptr<BaseAST>($3)        // 右侧 UnaryExp
+    );
   }
   ;
 
@@ -95,14 +147,13 @@ UnaryExp
   : PrimaryExp {
     $$ = new UnaryExpAST(unique_ptr<BaseAST>($1));    // 创建 UnaryExpAST (PrimaryExp)
   }
-  | UnaryOp UnaryExp {
+  | UnaryOp UnaryExp %prec UNARY_OP {
     UnaryOpAST* unary_op = dynamic_cast<UnaryOpAST*>($1);
     if (unary_op) {
       $$ = new UnaryExpAST(
           unary_op->op,              // 获取 op 的值
           unique_ptr<BaseAST>($2)    // UnaryExp 的所有权转移
       );
-      delete $1;  // 释放 UnaryOpAST 的内存
     } else {
       yyerror(ast, "Invalid UnaryOpAST cast");
       $$ = nullptr;

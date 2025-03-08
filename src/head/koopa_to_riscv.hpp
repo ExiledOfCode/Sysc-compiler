@@ -5,6 +5,7 @@
 #include <iostream>
 #include <ostream>
 #include <string>
+#include <unordered_map>
 // 访问 raw program
 void generate_riscv(const koopa_raw_program_t &program, std::ostream &out);
 

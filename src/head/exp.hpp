@@ -3,19 +3,115 @@
 #include <iostream>
 
 // Exp ::= UnaryExp;
+// Exp ::= AddExp;
 class ExpAST : public BaseAST {
 public:
-    std::unique_ptr<BaseAST> unary_exp;
+    std::unique_ptr<BaseAST> add_exp;
 
-    ExpAST(std::unique_ptr<BaseAST> unary_exp_ptr)
-        : unary_exp(std::move(unary_exp_ptr)) {
+    ExpAST(std::unique_ptr<BaseAST> add_exp_ptr)
+        : add_exp(std::move(add_exp_ptr)) {
     }
 
     int Dump() const override {
-        return unary_exp->Dump();
+        // 直接委托给 AddExp
+        return add_exp->Dump();
     }
 };
 
+// MulExp ::= UnaryExp | MulExp ("*" | "/" | "%") UnaryExp;
+class MulExpAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> unary_exp;       // 用于 UnaryExp
+    std::unique_ptr<BaseAST> mul_exp;         // 用于 MulExp（递归）
+    std::unique_ptr<BaseAST> unary_exp_right; // 右侧的 UnaryExp
+    std::string op;                           // 操作符：*、/ 或 %
+    bool is_unary; // 区分是单一 UnaryExp 还是二元操作
+
+    // 构造函数 1：单一 UnaryExp
+    MulExpAST(std::unique_ptr<BaseAST> unary_exp_ptr)
+        : unary_exp(std::move(unary_exp_ptr)), mul_exp(nullptr),
+          unary_exp_right(nullptr), is_unary(true) {
+    }
+
+    // 构造函数 2：MulExp op UnaryExp
+    MulExpAST(std::unique_ptr<BaseAST> mul_exp_ptr, std::string operation,
+              std::unique_ptr<BaseAST> unary_exp_right_ptr)
+        : unary_exp(nullptr), mul_exp(std::move(mul_exp_ptr)),
+          unary_exp_right(std::move(unary_exp_right_ptr)),
+          op(std::move(operation)), is_unary(false) {
+    }
+
+    int Dump() const override {
+        if (is_unary) {
+            // 如果只是 UnaryExp，直接返回其结果
+            return unary_exp->Dump();
+        } else {
+            // 二元操作：计算左右操作数
+            int left_id = mul_exp->Dump();
+            int right_id = unary_exp_right->Dump();
+            int nowId = TemValId;
+
+            // 根据操作符生成 Koopa IR
+            if (op == "*") {
+                std::cout << "%" << TemValId++ << " = mul %" << left_id << ", %"
+                          << right_id << "\n";
+            } else if (op == "/") {
+                std::cout << "%" << TemValId++ << " = div %" << left_id << ", %"
+                          << right_id << "\n";
+            } else if (op == "%") {
+                std::cout << "%" << TemValId++ << " = mod %" << left_id << ", %"
+                          << right_id << "\n";
+            }
+            return nowId;
+        }
+    }
+};
+
+// AddExp ::= MulExp | AddExp ("+" | "-") MulExp;
+class AddExpAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> mul_exp;       // 用于 MulExp
+    std::unique_ptr<BaseAST> add_exp;       // 用于 AddExp（递归）
+    std::unique_ptr<BaseAST> mul_exp_right; // 右侧的 MulExp
+    std::string op;                         // 操作符：+ 或 -
+    bool is_mul;                            // 区分是单一 MulExp 还是二元操作
+
+    // 构造函数 1：单一 MulExp
+    AddExpAST(std::unique_ptr<BaseAST> mul_exp_ptr)
+        : mul_exp(std::move(mul_exp_ptr)), add_exp(nullptr),
+          mul_exp_right(nullptr), is_mul(true) {
+    }
+
+    // 构造函数 2：AddExp op MulExp
+    AddExpAST(std::unique_ptr<BaseAST> add_exp_ptr, std::string operation,
+              std::unique_ptr<BaseAST> mul_exp_right_ptr)
+        : mul_exp(nullptr), add_exp(std::move(add_exp_ptr)),
+          mul_exp_right(std::move(mul_exp_right_ptr)), op(std::move(operation)),
+          is_mul(false) {
+    }
+
+    int Dump() const override {
+        if (is_mul) {
+            // 如果只是 MulExp，直接返回其结果
+            return mul_exp->Dump();
+        } else {
+            // 二元操作：计算左右操作数
+            int left_id = add_exp->Dump();
+            int right_id = mul_exp_right->Dump();
+            int nowId = TemValId;
+
+            // 根据操作符生成 Koopa IR
+            if (op == "+") {
+                std::cout << "%" << TemValId++ << " = add %" << left_id << ", %"
+                          << right_id << "\n";
+            } else if (op == "-") {
+                std::cout << "%" << TemValId++ << " = sub %" << left_id << ", %"
+                          << right_id << "\n";
+            }
+            return nowId;
+        }
+    }
+};
 // Number ::= INT_CONST;
 class NumberAST : public BaseAST {
 public:
@@ -85,8 +181,8 @@ public:
                           << "\n";
             } else if (unary_op == "!") {
                 // 逻辑非: %n = eq 0 , operand
-                std::cout << "%" << TemValId++ << " = eq %" << operand_id
-                          << ", 0" << "\n";
+                std::cout << "%" << TemValId++ << " = eq 0, %" << operand_id
+                          << "\n";
             }
             return nowId;
         }
