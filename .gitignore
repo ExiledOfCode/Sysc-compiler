@@ -6,3 +6,5 @@ koopa.h
 *.s
 *.koopa
 hello.c
+all_text_ast.txt
+all_text_riscv.txt
