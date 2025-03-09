@@ -54,8 +54,10 @@ void generate_riscv(const koopa_raw_function_t &func, std::ostream &out) {
         for (size_t j = 0; j < bb->insts.len; ++j) {
             koopa_raw_value_t value = (koopa_raw_value_t)bb->insts.buffer[j];
             if (value->kind.tag == KOOPA_RVT_BINARY ||
-                value->kind.tag == KOOPA_RVT_RETURN) {
-                allocate_stack(value); // 为每个计算结果预分配栈空间
+                value->kind.tag == KOOPA_RVT_RETURN ||
+                value->kind.tag == KOOPA_RVT_ALLOC ||
+                value->kind.tag == KOOPA_RVT_LOAD) { // 添加 LOAD
+                allocate_stack(value);               // 为每个需要栈空间的值分配
             }
         }
     }
@@ -72,8 +74,6 @@ void generate_riscv(const koopa_raw_function_t &func, std::ostream &out) {
             (koopa_raw_basic_block_t)func->bbs.buffer[i];
         generate_riscv(bb, out);
     }
-
-    // 函数出口恢复栈（简化处理，实际应由 return 指令控制）
 }
 
 // 访问基本块
@@ -100,9 +100,60 @@ void generate_riscv(const koopa_raw_value_t &value, std::ostream &out) {
     case KOOPA_RVT_BINARY:
         generate_riscv(value->kind.data.binary, value, out);
         break;
+    case KOOPA_RVT_ALLOC:
+        // 因为我们已经在进入函数的时候申请了栈帧，所以现在不需要再处理这个指令了
+        break;
+    case KOOPA_RVT_STORE:
+        generate_riscv(value->kind.data.store, out);
+        break;
+    case KOOPA_RVT_LOAD:
+        generate_riscv(value->kind.data.load, value, out);
+        break;
     default:
         assert(false); // 未处理的指令类型
     }
+}
+
+// 访问 load 指令
+void generate_riscv(const koopa_raw_load_t &load,
+                    const koopa_raw_value_t &value, std::ostream &out) {
+    const koopa_raw_value_t &src_value = load.src;
+    assert(src_value->kind.tag == KOOPA_RVT_ALLOC); // 目前只支持从 alloc 加载
+
+    // 获取源地址的栈偏移量
+    int src_offset = get_stack_offset(src_value);
+
+    // 从栈加载值到 t0
+    out << "  lw t0, " << src_offset << "(sp)\n";
+
+    // 获取 load 结果的栈偏移量
+    int result_offset = get_stack_offset(value);
+
+    // 将结果存储到栈上
+    out << "  sw t0, " << result_offset << "(sp)\n";
+}
+
+// 访问 store 指令
+void generate_riscv(const koopa_raw_store_t &store, std::ostream &out) {
+    const koopa_raw_value_t &src_value = store.value; // 源值（如 %2）
+    const koopa_raw_value_t &dest_value = store.dest; // 目标地址（如 @x）
+
+    // 加载源值到 t0
+    if (src_value->kind.tag == KOOPA_RVT_INTEGER) {
+        int32_t int_val = src_value->kind.data.integer.value;
+        out << "  li t0, " << int_val << "\n";
+    } else {
+        int src_offset = get_stack_offset(src_value);
+        out << "  lw t0, " << src_offset << "(sp)\n"; // 从栈加载源值
+    }
+
+    // 获取目标地址的栈偏移量
+    assert(dest_value->kind.tag ==
+           KOOPA_RVT_ALLOC); // 目前只支持 alloc 类型的目标
+    int dest_offset = get_stack_offset(dest_value);
+
+    // 存储值到目标地址
+    out << "  sw t0, " << dest_offset << "(sp)\n";
 }
 
 // 访问 return 指令
