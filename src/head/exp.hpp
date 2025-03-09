@@ -260,14 +260,15 @@ public:
     std::unique_ptr<BaseAST> exp;
     std::unique_ptr<BaseAST> lval;
     std::unique_ptr<BaseAST> number;
-    enum { EXP, LVAL, NUMBER } type; // 保留匿名枚举
+    enum PrimaryType { EXP, LVAL, NUMBER }; // 命名枚举类型
+    PrimaryType type;                       // 使用命名的枚举类型
 
     PrimaryExpAST(std::unique_ptr<BaseAST> exp_ptr,
                   std::unique_ptr<BaseAST> lval_ptr,
-                  std::unique_ptr<BaseAST> num_ptr, int t)
+                  std::unique_ptr<BaseAST> num_ptr,
+                  PrimaryType t) // 参数改为 PrimaryType 类型
         : exp(std::move(exp_ptr)), lval(std::move(lval_ptr)),
-          number(std::move(num_ptr)),
-          type(static_cast<decltype(type)>(t)) { // 显式转换
+          number(std::move(num_ptr)), type(t) {
     }
 
     int Dump() const override {
