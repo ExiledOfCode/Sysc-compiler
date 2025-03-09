@@ -2,6 +2,7 @@
 #include "head/exp.hpp"
 #include "head/koopa.h"
 #include "head/koopa_to_riscv.hpp"
+#include "head/stmt.hpp"
 #include <cassert>
 #include <cstdio>
 #include <cstring>

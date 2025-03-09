@@ -6,10 +6,13 @@
 
 extern int TemValId; // 声明全局变量，不初始化
 
+class ExpAST;
+class LValAST;
+
 class BaseAST {
 public:
     virtual ~BaseAST() = default;
-    virtual int Dump() const = 0; // 纯虚函数，输出Koopa IR并返回临时变量ID
+    virtual int Dump() const = 0; // 纯虚函数，输出 Koopa IR 并返回临时变量 ID
 };
 
 // CompUnit ::= FuncDef;
@@ -80,7 +83,7 @@ public:
 class BlockItemAST : public BaseAST {
 public:
     std::unique_ptr<BaseAST> item;
-    bool is_decl; // true表示Decl，false表示Stmt
+    bool is_decl; // true 表示 Decl，false 表示 Stmt
     BlockItemAST(std::unique_ptr<BaseAST> item_ptr, bool is_decl_flag)
         : item(std::move(item_ptr)), is_decl(is_decl_flag) {
     }
@@ -89,28 +92,16 @@ public:
     }
 };
 
-// Stmt ::= "return" Exp ";";
-class StmtAST : public BaseAST {
-public:
-    std::unique_ptr<BaseAST> exp;
-    StmtAST(std::unique_ptr<BaseAST> exp_ptr) : exp(std::move(exp_ptr)) {
-    }
-    int Dump() const override {
-        int exp_id = exp->Dump();
-        std::cout << "ret %" << exp_id << "\n";
-        return 0;
-    }
-};
-
-// Decl ::= ConstDecl;
+// Decl ::= ConstDecl | VarDecl; // 更新：支持变量声明
 class DeclAST : public BaseAST {
 public:
-    std::unique_ptr<BaseAST> const_decl;
-    DeclAST(std::unique_ptr<BaseAST> const_decl_ptr)
-        : const_decl(std::move(const_decl_ptr)) {
+    std::unique_ptr<BaseAST> decl; // 可以是 ConstDecl 或 VarDecl
+    bool is_const;                 // true 表示 ConstDecl，false 表示 VarDecl
+    DeclAST(std::unique_ptr<BaseAST> decl_ptr, bool is_const_flag)
+        : decl(std::move(decl_ptr)), is_const(is_const_flag) {
     }
     int Dump() const override {
-        const_decl->Dump();
+        decl->Dump();
         return 0;
     }
 };
@@ -126,6 +117,23 @@ public:
     }
     int Dump() const override {
         for (const auto &def : const_defs) {
+            def->Dump();
+        }
+        return 0;
+    }
+};
+
+// VarDecl ::= BType VarDef {"," VarDef} ";"; // 新增：变量声明
+class VarDeclAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> btype;
+    std::vector<std::unique_ptr<BaseAST>> var_defs;
+    VarDeclAST(std::unique_ptr<BaseAST> btype_ptr,
+               std::vector<std::unique_ptr<BaseAST>> defs)
+        : btype(std::move(btype_ptr)), var_defs(std::move(defs)) {
+    }
+    int Dump() const override {
+        for (const auto &def : var_defs) {
             def->Dump();
         }
         return 0;
@@ -161,6 +169,24 @@ public:
     }
 };
 
+// VarDef ::= IDENT | IDENT "=" InitVal; // 新增：变量定义
+class VarDefAST : public BaseAST {
+public:
+    std::string ident;
+    std::unique_ptr<BaseAST> init_val; // 如果没有初始化，则为 nullptr
+    VarDefAST(std::string id, std::unique_ptr<BaseAST> init_val_ptr = nullptr)
+        : ident(std::move(id)), init_val(std::move(init_val_ptr)) {
+    }
+    int Dump() const override {
+        std::cout << "@" << ident << " = alloc i32\n";
+        if (init_val) {
+            int val_id = init_val->Dump();
+            std::cout << "store %" << val_id << ", @" << ident << "\n";
+        }
+        return 0;
+    }
+};
+
 // ConstInitVal ::= ConstExp;
 class ConstInitValAST : public BaseAST {
 public:
@@ -169,6 +195,17 @@ public:
     }
     int Dump() const override {
         return const_exp->Dump();
+    }
+};
+
+// InitVal ::= Exp; // 新增：变量初始值
+class InitValAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> exp;
+    InitValAST(std::unique_ptr<BaseAST> exp_ptr) : exp(std::move(exp_ptr)) {
+    }
+    int Dump() const override {
+        return exp->Dump();
     }
 };
 
