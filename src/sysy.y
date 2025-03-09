@@ -1,8 +1,9 @@
 %code requires {
   #include <memory>
   #include <string>
-  #include "head/ast.hpp"  // 包含 CompUnitAST, FuncDefAST 等定义的头文件
-  #include "head/exp.hpp"  // 包含 ExpAST, UnaryExpAST, AddExpAST 等定义的头文件
+  #include <vector>
+  #include "head/ast.hpp"  // 包含AST定义
+  #include "head/exp.hpp"  // 包含表达式定义
 }
 
 %{
@@ -12,40 +13,42 @@
 #include "head/ast.hpp"
 #include "head/exp.hpp"
 
-// 声明外部词法分析函数
 int yylex();
 void yyerror(std::unique_ptr<BaseAST>& ast, const char *s);
 
 using namespace std;
 
 // 定义常量以提高代码可读性
-#define IS_NUMBER true    // 表示 PrimaryExp 是数字
-#define IS_EXP false      // 表示 PrimaryExp 是表达式
-#define IS_UNARY true     // 表示 MulExp 是单一的 UnaryExp
-#define IS_MUL true       // 表示 AddExp 是单一的 MulExp
+#define IS_EXP 0    // PrimaryExp是表达式
+#define IS_LVAL 1   // PrimaryExp是左值
+#define IS_NUMBER 2 // PrimaryExp是数字
+#define IS_DECL true // BlockItem是声明
+#define IS_STMT false // BlockItem是语句
 %}
 
-// 定义解析参数，传递 AST 的根节点
+// 定义解析参数，传递AST的根节点
 %parse-param {std::unique_ptr<BaseAST>& ast}
 
 // 定义联合类型，用于存储不同类型的值
 %union {
   std::string *str_val;  // 字符串指针，用于标识符 (IDENT)
   int int_val;           // 整数值，用于整数常量 (INT_CONST)
-  BaseAST *ast_val;      // AST 节点指针，用于语法树节点
+  BaseAST *ast_val;      // AST节点指针，用于语法树节点
+  std::vector<std::unique_ptr<BaseAST>> *vec_ast_val; // 用于多个ConstDef或BlockItemList
 }
 
 // 定义终结符 (token)
-%token INT RETURN        // 关键字：int 和 return
-%token AND OR            // 逻辑运算符：&& 和 ||
-%token EQ NE LT GT LE GE // 比较运算符：==, !=, <, >, <=, >=
-%token <str_val> IDENT   // 标识符
-%token <int_val> INT_CONST  // 整数常量
+%token INT RETURN CONST        // 关键字：int, return, const
+%token AND OR                  // 逻辑运算符：&& 和 ||
+%token EQ NE LT GT LE GE       // 比较运算符：==, !=, <, >, <=, >=
+%token <str_val> IDENT         // 标识符
+%token <int_val> INT_CONST     // 整数常量
 
 // 定义非终结符的类型
-%type <ast_val> CompUnit FuncDef FuncType Block Stmt
-%type <ast_val> Exp PrimaryExp UnaryExp UnaryOp Number
+%type <ast_val> CompUnit FuncDef FuncType Block Stmt Decl ConstDecl BType ConstDef ConstInitVal
+%type <ast_val> Exp PrimaryExp UnaryExp UnaryOp Number LVal ConstExp BlockItem
 %type <ast_val> AddExp MulExp RelExp EqExp LAndExp LOrExp
+%type <vec_ast_val> BlockItemList ConstDefList
 
 // 定义操作符的优先级和结合性（从低到高）
 %left OR                 // 逻辑或，最低优先级，左结合
@@ -83,8 +86,79 @@ FuncType
 
 // 函数体
 Block
-  : '{' Stmt '}' {
-    $$ = new BlockAST(unique_ptr<BaseAST>($2));
+  : '{' BlockItemList '}' {
+    $$ = new BlockAST(std::move(*$2));
+    delete $2;
+  }
+  ;
+
+// 块项列表
+BlockItemList
+  : /* empty */ {
+    $$ = new vector<unique_ptr<BaseAST>>();
+  }
+  | BlockItemList BlockItem {
+    $1->push_back(unique_ptr<BaseAST>($2));
+    $$ = $1;
+  }
+  ;
+
+// 块项
+BlockItem
+  : Decl {
+    $$ = new BlockItemAST(unique_ptr<BaseAST>($1), IS_DECL);
+  }
+  | Stmt {
+    $$ = new BlockItemAST(unique_ptr<BaseAST>($1), IS_STMT);
+  }
+  ;
+
+// 声明
+Decl
+  : ConstDecl {
+    $$ = new DeclAST(unique_ptr<BaseAST>($1));
+  }
+  ;
+
+// 常量声明
+ConstDecl
+  : CONST BType ConstDefList ';' {
+    $$ = new ConstDeclAST(unique_ptr<BaseAST>($2), std::move(*$3));
+    delete $3;
+  }
+  ;
+
+// 基本类型
+BType
+  : INT {
+    $$ = new BTypeAST("int");
+  }
+  ;
+
+// 常量定义列表
+ConstDefList
+  : ConstDef {
+    $$ = new vector<unique_ptr<BaseAST>>();
+    $$->push_back(unique_ptr<BaseAST>($1));
+  }
+  | ConstDefList ',' ConstDef {
+    $1->push_back(unique_ptr<BaseAST>($3));
+    $$ = $1;
+  }
+  ;
+
+// 常量定义
+ConstDef
+  : IDENT '=' ConstInitVal {
+    $$ = new ConstDefAST(*$1, unique_ptr<BaseAST>($3));
+    delete $1;
+  }
+  ;
+
+// 常量初始值
+ConstInitVal
+  : ConstExp {
+    $$ = new ConstInitValAST(unique_ptr<BaseAST>($1));
   }
   ;
 
@@ -186,10 +260,21 @@ MulExp
 // 初级表达式
 PrimaryExp
   : '(' Exp ')' {
-    $$ = new PrimaryExpAST(unique_ptr<BaseAST>($2), nullptr, IS_EXP);
+    $$ = new PrimaryExpAST(unique_ptr<BaseAST>($2), nullptr, nullptr, PrimaryExpAST::EXP);
+  }
+  | LVal {
+    $$ = new PrimaryExpAST(nullptr, unique_ptr<BaseAST>($1), nullptr, PrimaryExpAST::LVAL);
   }
   | Number {
-    $$ = new PrimaryExpAST(nullptr, unique_ptr<BaseAST>($1), IS_NUMBER);
+    $$ = new PrimaryExpAST(nullptr, nullptr, unique_ptr<BaseAST>($1), PrimaryExpAST::NUMBER);
+  }
+  ;
+
+// 左值
+LVal
+  : IDENT {
+    $$ = new LValAST(*$1);
+    delete $1;
   }
   ;
 
@@ -226,6 +311,13 @@ UnaryOp
 Number
   : INT_CONST {
     $$ = new NumberAST($1);
+  }
+  ;
+
+// 常量表达式
+ConstExp
+  : Exp {
+    $$ = new ConstExpAST(unique_ptr<BaseAST>($1));
   }
   ;
 

@@ -36,6 +36,7 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 
 "int"           { return INT; }
 "return"        { return RETURN; }
+"const"         { return CONST; }
 "&&"            { return AND; }
 "||"            { return OR; }
 "=="            { return EQ; }
