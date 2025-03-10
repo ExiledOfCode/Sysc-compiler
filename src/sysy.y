@@ -183,14 +183,38 @@ InitVal
     $$ = new InitValAST(unique_ptr<BaseAST>($1));
   }
   ;
-
+  
 Stmt
-  : RETURN Exp ';' {
-    $$ = new StmtAST(unique_ptr<BaseAST>($2));
-  }
-  | LVal '=' Exp ';' {
-    $$ = new StmtAST(unique_ptr<BaseAST>($1), unique_ptr<BaseAST>($3));
-  }
+  : LVal '=' Exp ';' {
+      $$ = new StmtAST(StmtAST::StmtKind::ASSIGN,
+                       std::unique_ptr<BaseAST>($1),  // lval
+                       std::unique_ptr<BaseAST>($3),  // exp
+                       nullptr);                      // block
+    }
+  | Block {
+      $$ = new StmtAST(StmtAST::StmtKind::BLOCK,
+                       nullptr,                       // lval
+                       nullptr,                       // exp
+                       std::unique_ptr<BaseAST>($1)); // block
+    }
+  | RETURN Exp ';' {
+      $$ = new StmtAST(StmtAST::StmtKind::RETURN_EXP,
+                       nullptr,                       // lval
+                       std::unique_ptr<BaseAST>($2),  // exp
+                       nullptr);                      // block
+    }
+  | RETURN ';' {
+      $$ = new StmtAST(StmtAST::StmtKind::RETURN_EMPTY,
+                       nullptr,                       // lval
+                       nullptr,                       // exp
+                       nullptr);                      // block
+    }
+  | ';' {
+      $$ = new StmtAST(StmtAST::StmtKind::EMPTY,
+                       nullptr,                       // lval
+                       nullptr,                       // exp
+                       nullptr);                      // block
+    }
   ;
 
 Exp
