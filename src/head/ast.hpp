@@ -44,6 +44,7 @@ public:
         std::cout << "@" << ident << "() : ";
         func_type->Dump();
         std::cout << "{\n";
+        std::cout << "%entry:\n";
         block->Dump();
         std::cout << "}\n";
         return 0;
@@ -71,7 +72,6 @@ public:
         : block_items(std::move(items)) {
     }
     int Dump() const override {
-        std::cout << "%entry:\n";
         for (const auto &item : block_items) {
             item->Dump();
         }
