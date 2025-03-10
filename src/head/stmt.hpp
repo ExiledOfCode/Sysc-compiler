@@ -2,6 +2,18 @@
 #include "ast.hpp"
 #include "exp.hpp"
 
+class LValAST : public BaseAST {
+public:
+    std::string ident;
+    LValAST(std::string id) : ident(std::move(id)) {
+    }
+    int Dump() const override {
+        int nowId = TemValId;
+        std::cout << "%" << TemValId++ << " = load @" << ident << "\n";
+        return nowId;
+    }
+};
+
 // Stmt ::= "return" Exp ";" | LVal "=" Exp ";"; // 更新：支持赋值语句
 class StmtAST : public BaseAST {
 public:
