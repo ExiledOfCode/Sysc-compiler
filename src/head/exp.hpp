@@ -243,18 +243,6 @@ public:
     }
 };
 
-class LValAST : public BaseAST {
-public:
-    std::string ident;
-    LValAST(std::string id) : ident(std::move(id)) {
-    }
-    int Dump() const override {
-        int nowId = TemValId;
-        std::cout << "%" << TemValId++ << " = load @" << ident << "\n";
-        return nowId;
-    }
-};
-
 class PrimaryExpAST : public BaseAST {
 public:
     std::unique_ptr<BaseAST> exp;

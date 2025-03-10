@@ -1,13 +1,12 @@
 #pragma once
+#include "SymbolTable.hpp"
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
 
+extern SymbolTable symTab;
 extern int TemValId; // 声明全局变量，不初始化
-
-class ExpAST;
-class LValAST;
 
 class BaseAST {
 public:
@@ -64,7 +63,6 @@ public:
     }
 };
 
-// Block ::= "{" {BlockItem} "}";
 class BlockAST : public BaseAST {
 public:
     std::vector<std::unique_ptr<BaseAST>> block_items;
@@ -72,9 +70,11 @@ public:
         : block_items(std::move(items)) {
     }
     int Dump() const override {
+        symTab.enterScope(); // 进入块作用域
         for (const auto &item : block_items) {
             item->Dump();
         }
+        symTab.exitScope(); // 退出块作用域
         return 0;
     }
 };
@@ -153,35 +153,41 @@ public:
     }
 };
 
-// ConstDef ::= IDENT "=" ConstInitVal;
 class ConstDefAST : public BaseAST {
 public:
     std::string ident;
     std::unique_ptr<BaseAST> const_init_val;
     ConstDefAST(std::string id, std::unique_ptr<BaseAST> init_val)
         : ident(std::move(id)), const_init_val(std::move(init_val)) {
+        // 不再调用 symTab.addVariable
     }
     int Dump() const override {
+        // 在 Dump 时添加常量到符号表
+        symTab.addVariable(ident, true); // 添加常量
         int val_id = const_init_val->Dump();
-        std::cout << "@" << ident << " = alloc i32\n";
-        std::cout << "store %" << val_id << ", @" << ident << "\n";
+        std::string modified_name = symTab.findVariable(ident);
+        std::cout << modified_name << " = alloc i32\n";
+        std::cout << "store %" << val_id << ", " << modified_name << "\n";
         return 0;
     }
 };
 
-// VarDef ::= IDENT | IDENT "=" InitVal; // 新增：变量定义
 class VarDefAST : public BaseAST {
 public:
     std::string ident;
-    std::unique_ptr<BaseAST> init_val; // 如果没有初始化，则为 nullptr
+    std::unique_ptr<BaseAST> init_val;
     VarDefAST(std::string id, std::unique_ptr<BaseAST> init_val_ptr = nullptr)
         : ident(std::move(id)), init_val(std::move(init_val_ptr)) {
+        // 不再调用 symTab.addVariable
     }
     int Dump() const override {
-        std::cout << "@" << ident << " = alloc i32\n";
+        // 在 Dump 时添加变量到符号表
+        symTab.addVariable(ident, false); // 添加非常量变量
+        std::string modified_name = symTab.findVariable(ident);
+        std::cout << modified_name << " = alloc i32\n";
         if (init_val) {
             int val_id = init_val->Dump();
-            std::cout << "store %" << val_id << ", @" << ident << "\n";
+            std::cout << "store %" << val_id << ", " << modified_name << "\n";
         }
         return 0;
     }

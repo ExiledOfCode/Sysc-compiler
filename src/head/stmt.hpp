@@ -9,7 +9,13 @@ public:
     }
     int Dump() const override {
         int nowId = TemValId;
-        std::cout << "%" << TemValId++ << " = load @" << ident << "\n";
+        // 在使用变量时，确保它已在符号表中
+        if (!symTab.variableExists(ident)) {
+            std::cerr << "Error: Undefined variable '" << ident << "'\n";
+            assert(false && "Undefined variable");
+        }
+        std::string modified_name = symTab.findVariable(ident);
+        std::cout << "%" << TemValId++ << " = load " << modified_name << "\n";
         return nowId;
     }
 };
@@ -22,14 +28,14 @@ public:
         RETURN_EXP,   // 带表达式的返回语句 (return Exp)
         RETURN_EMPTY, // 空返回语句 (return;)
         BLOCK,        // 块语句 (Block)
-        EMPTY         // 空语句 (;)
+        EMPTY,        // 空语句 (;)
+        SIMPLE_EXP    // 单一语句
     };
 
     StmtKind kind;                  // 语句类型
     std::unique_ptr<BaseAST> exp;   // 用于返回表达式或赋值语句的右值
     std::unique_ptr<BaseAST> lval;  // 用于赋值语句的左值
     std::unique_ptr<BaseAST> block; // 用于块语句
-
     // 单一构造函数，带默认参数，允许不使用的指针为 nullptr
     StmtAST(StmtKind k, std::unique_ptr<BaseAST> lval_ptr = nullptr,
             std::unique_ptr<BaseAST> exp_ptr = nullptr,
@@ -43,8 +49,9 @@ public:
         switch (kind) {
         case StmtKind::ASSIGN: {
             int exp_id = exp->Dump();
-            std::cout << "store %" << exp_id << ", @"
-                      << dynamic_cast<LValAST *>(lval.get())->ident << "\n";
+            std::string modified_name =
+                symTab.findVariable(dynamic_cast<LValAST *>(lval.get())->ident);
+            std::cout << "store %" << exp_id << ", " << modified_name << "\n";
             return 0;
         }
         case StmtKind::RETURN_EXP: {
@@ -58,6 +65,10 @@ public:
         }
         case StmtKind::BLOCK: {
             block->Dump(); // 调用块的 Dump
+            return 0;
+        }
+        case StmtKind::SIMPLE_EXP: {
+            exp->Dump();
             return 0;
         }
         case StmtKind::EMPTY: {
