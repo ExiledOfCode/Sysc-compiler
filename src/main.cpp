@@ -25,6 +25,7 @@ cmake --build build --parallel 4   # 增量构建
 // 看起来会很烦人, 于是干脆采用这种看起来 dirty 但实际很有效的手段
 
 int TemValId = 0; // 全局临时变量编号
+int block_counter = 0;
 SymbolTable symTab;
 
 extern FILE *yyin;

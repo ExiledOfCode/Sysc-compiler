@@ -41,15 +41,16 @@ using namespace std;
   std::vector<std::unique_ptr<BaseAST>> *vec_ast_val;
 }
 
-%token INT RETURN CONST
+%token INT RETURN CONST IF ELSE
 %token AND OR
 %token EQ NE LT GT LE GE
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
-%type <ast_val> CompUnit FuncDef FuncType Block Stmt Decl ConstDecl VarDecl BType 
-%type <ast_val> ConstDef ConstInitVal VarDef InitVal Exp PrimaryExp UnaryExp UnaryOp 
+%type <ast_val> CompUnit FuncDef FuncType Block Decl ConstDecl VarDecl BType
+%type <ast_val> ConstDef ConstInitVal VarDef InitVal Exp PrimaryExp UnaryExp UnaryOp
 %type <ast_val> Number LVal ConstExp BlockItem AddExp MulExp RelExp EqExp LAndExp LOrExp
+%type <ast_val> Stmt OpenStmt ClosedStmt
 %type <vec_ast_val> BlockItemList ConstDefList VarDefList
 
 %left OR
@@ -206,47 +207,85 @@ InitVal
   ;
 
 Stmt
-  : LVal '=' Exp ';' {
+  : OpenStmt
+  | ClosedStmt
+  ;
+
+OpenStmt
+  : IF '(' Exp ')' Stmt {
+    if (flag) cerr << "Parsed Stmt: If without else" << endl;
+    $$ = new StmtAST(StmtAST::StmtKind::IF,
+                     nullptr,                    // lval
+                     std::unique_ptr<BaseAST>($3), // exp
+                     std::unique_ptr<BaseAST>($5), // then_stmt
+                     nullptr,                    // else_stmt
+                     nullptr);                   // block
+  }
+  ;
+
+ClosedStmt
+  : IF '(' Exp ')' ClosedStmt ELSE Stmt {
+    if (flag) cerr << "Parsed Stmt: If with else" << endl;
+    $$ = new StmtAST(StmtAST::StmtKind::IF_ELSE,
+                     nullptr,                    // lval
+                     std::unique_ptr<BaseAST>($3), // exp
+                     std::unique_ptr<BaseAST>($5), // then_stmt
+                     std::unique_ptr<BaseAST>($7), // else_stmt
+                     nullptr);                   // block
+  }
+  | LVal '=' Exp ';' {
     if (flag) cerr << "Parsed Stmt: Assignment" << endl;
     $$ = new StmtAST(StmtAST::StmtKind::ASSIGN,
-                     std::unique_ptr<BaseAST>($1),
-                     std::unique_ptr<BaseAST>($3),
-                     nullptr);
+                     std::unique_ptr<BaseAST>($1), // lval
+                     std::unique_ptr<BaseAST>($3), // exp
+                     nullptr,                    // then_stmt
+                     nullptr,                    // else_stmt
+                     nullptr);                   // block
   }
   | Block {
     if (flag) cerr << "Parsed Stmt: Block" << endl;
     $$ = new StmtAST(StmtAST::StmtKind::BLOCK,
-                     nullptr,
-                     nullptr,
-                     std::unique_ptr<BaseAST>($1));
+                     nullptr,                    // lval
+                     nullptr,                    // exp
+                     nullptr,                    // then_stmt
+                     nullptr,                    // else_stmt
+                     std::unique_ptr<BaseAST>($1)); // block
   }
   | RETURN Exp ';' {
     if (flag) cerr << "Parsed Stmt: Return with Expression" << endl;
     $$ = new StmtAST(StmtAST::StmtKind::RETURN_EXP,
-                     nullptr,
-                     std::unique_ptr<BaseAST>($2),
-                     nullptr);
+                     nullptr,                    // lval
+                     std::unique_ptr<BaseAST>($2), // exp
+                     nullptr,                    // then_stmt
+                     nullptr,                    // else_stmt
+                     nullptr);                   // block
   }
   | RETURN ';' {
     if (flag) cerr << "Parsed Stmt: Return Empty" << endl;
     $$ = new StmtAST(StmtAST::StmtKind::RETURN_EMPTY,
-                     nullptr,
-                     nullptr,
-                     nullptr);
+                     nullptr,                    // lval
+                     nullptr,                    // exp
+                     nullptr,                    // then_stmt
+                     nullptr,                    // else_stmt
+                     nullptr);                   // block
   }
   | Exp ';' {
     if (flag) cerr << "Parsed Stmt: Simple Exp" << endl;
     $$ = new StmtAST(StmtAST::StmtKind::SIMPLE_EXP,
-                     nullptr,
-                     std::unique_ptr<BaseAST>($1),
-                     nullptr);
+                     nullptr,                    // lval
+                     std::unique_ptr<BaseAST>($1), // exp
+                     nullptr,                    // then_stmt
+                     nullptr,                    // else_stmt
+                     nullptr);                   // block
   }
   | ';' {
     if (flag) cerr << "Parsed Stmt: Empty" << endl;
     $$ = new StmtAST(StmtAST::StmtKind::EMPTY,
-                     nullptr,
-                     nullptr,
-                     nullptr);
+                     nullptr,                    // lval
+                     nullptr,                    // exp
+                     nullptr,                    // then_stmt
+                     nullptr,                    // else_stmt
+                     nullptr);                   // block
   }
   ;
 
