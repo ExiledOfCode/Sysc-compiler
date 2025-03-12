@@ -41,7 +41,7 @@ using namespace std;
   std::vector<std::unique_ptr<BaseAST>> *vec_ast_val;
 }
 
-%token INT RETURN CONST IF ELSE
+%token INT RETURN CONST IF ELSE WHILE
 %token AND OR
 %token EQ NE LT GT LE GE
 %token <str_val> IDENT
@@ -218,6 +218,15 @@ OpenStmt
                      nullptr,                    // lval
                      std::unique_ptr<BaseAST>($3), // exp
                      std::unique_ptr<BaseAST>($5), // then_stmt
+                     nullptr,                    // else_stmt
+                     nullptr);                   // block
+  }
+  | WHILE '(' Exp ')' Stmt {  // 新增 while 语句解析
+    if (flag) cerr << "Parsed Stmt: While" << endl;
+    $$ = new StmtAST(StmtAST::StmtKind::WHILE,  // 添加 WHILE 类型
+                     nullptr,                    // lval
+                     std::unique_ptr<BaseAST>($3), // exp (条件)
+                     std::unique_ptr<BaseAST>($5), // then_stmt (循环体)
                      nullptr,                    // else_stmt
                      nullptr);                   // block
   }

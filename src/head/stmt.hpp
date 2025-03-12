@@ -32,7 +32,8 @@ public:
         EMPTY,
         SIMPLE_EXP,
         IF,
-        IF_ELSE
+        IF_ELSE,
+        WHILE
     };
 
     StmtKind kind;
@@ -105,6 +106,13 @@ public:
             }
             return dumpIfElse();
         }
+        case StmtKind::WHILE: { // 新增 WHILE 处理
+            if (!exp || !then_stmt) {
+                std::cerr << "Error: Null exp or then_stmt in WHILE\n";
+                assert(false);
+            }
+            return dumpWhile();
+        }
         default:
             std::cerr << "Unknown StmtKind\n";
             return -1;
@@ -159,6 +167,34 @@ private:
 
         if (has1 && has2)
             return 0;
+        has_returned = 0;
+        std::cout << "\n%end_" << end_block_id << ":\n";
+        return 0;
+    }
+
+    int dumpWhile() const { // 新增 dumpWhile 方法
+        if (has_returned)
+            return 0;
+        int cond_block_id = block_counter;
+        int body_block_id = block_counter;
+        int end_block_id = block_counter++;
+
+        // 跳转到条件检查块
+        std::cout << "jump %cond_" << cond_block_id << "\n";
+
+        // 条件检查块
+        std::cout << "\n%cond_" << cond_block_id << ":\n";
+        int cond_id = exp->Dump();
+        std::cout << "br %" << cond_id << ", %body_" << body_block_id
+                  << ", %end_" << end_block_id << "\n";
+
+        // 循环体块
+        std::cout << "\n%body_" << body_block_id << ":\n";
+        then_stmt->Dump();
+        if (!has_returned)
+            std::cout << "jump %cond_" << cond_block_id << "\n";
+
+        // 结束块
         has_returned = 0;
         std::cout << "\n%end_" << end_block_id << ":\n";
         return 0;

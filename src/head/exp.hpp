@@ -41,7 +41,6 @@ public:
         } else {
             int left_id = mul_exp->Dump();
             int right_id = unary_exp_right->Dump();
-            int nowId = TemValId;
             if (op == "*") {
                 std::cout << "%" << TemValId++ << " = mul %" << left_id << ", %"
                           << right_id << "\n";
@@ -52,7 +51,7 @@ public:
                 std::cout << "%" << TemValId++ << " = mod %" << left_id << ", %"
                           << right_id << "\n";
             }
-            return nowId;
+            return TemValId - 1;
         }
     }
 };
@@ -82,7 +81,6 @@ public:
         } else {
             int left_id = add_exp->Dump();
             int right_id = mul_exp_right->Dump();
-            int nowId = TemValId;
             if (op == "+") {
                 std::cout << "%" << TemValId++ << " = add %" << left_id << ", %"
                           << right_id << "\n";
@@ -90,7 +88,7 @@ public:
                 std::cout << "%" << TemValId++ << " = sub %" << left_id << ", %"
                           << right_id << "\n";
             }
-            return nowId;
+            return TemValId - 1;
         }
     }
 };
@@ -120,7 +118,6 @@ public:
         } else {
             int left_id = rel_exp->Dump();
             int right_id = add_exp_right->Dump();
-            int nowId = TemValId;
             if (op == "<") {
                 std::cout << "%" << TemValId++ << " = lt %" << left_id << ", %"
                           << right_id << "\n";
@@ -134,7 +131,7 @@ public:
                 std::cout << "%" << TemValId++ << " = ge %" << left_id << ", %"
                           << right_id << "\n";
             }
-            return nowId;
+            return TemValId - 1;
         }
     }
 };
@@ -164,7 +161,6 @@ public:
         } else {
             int left_id = eq_exp->Dump();
             int right_id = rel_exp_right->Dump();
-            int nowId = TemValId;
             if (op == "==") {
                 std::cout << "%" << TemValId++ << " = eq %" << left_id << ", %"
                           << right_id << "\n";
@@ -172,7 +168,7 @@ public:
                 std::cout << "%" << TemValId++ << " = ne %" << left_id << ", %"
                           << right_id << "\n";
             }
-            return nowId;
+            return TemValId - 1;
         }
     }
 };
@@ -200,13 +196,12 @@ public:
         } else {
             int left_id = land_exp->Dump();
             int right_id = eq_exp_right->Dump();
-            int nowId = TemValId;
             std::cout << "%" << TemValId++ << " = ne 0, %" << left_id << "\n";
             int temp_id = TemValId;
             std::cout << "%" << TemValId++ << " = ne 0, %" << right_id << "\n";
             std::cout << "%" << TemValId++ << " = and %" << (temp_id - 1)
                       << ", %" << temp_id << "\n";
-            return nowId;
+            return TemValId - 1;
         }
     }
 };
@@ -234,13 +229,12 @@ public:
         } else {
             int left_id = lor_exp->Dump();
             int right_id = land_exp_right->Dump();
-            int nowId = TemValId;
             std::cout << "%" << TemValId++ << " = ne 0, %" << left_id << "\n";
             int temp_id = TemValId;
             std::cout << "%" << TemValId++ << " = ne 0, %" << right_id << "\n";
             std::cout << "%" << TemValId++ << " = or %" << (temp_id - 1)
                       << ", %" << temp_id << "\n";
-            return nowId;
+            return TemValId - 1;
         }
     }
 };
