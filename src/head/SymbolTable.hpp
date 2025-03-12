@@ -13,11 +13,15 @@ public:
         Symbol(std::string n, bool c) : name(std::move(n)), is_const(c) {
         }
     };
+    struct LoopContext {
+        int cond_block_id; // 条件块 ID
+        int end_block_id;  // 结束块 ID
+    };
 
 private:
     std::vector<std::unordered_map<std::string, Symbol>> table; // 符号表栈
     int current_level;                                          // 当前层级
-
+    std::vector<LoopContext> loop_stack;                        // 循环上下文栈
 public:
     SymbolTable() : current_level(-1) {
         // 初始化全局层
@@ -76,5 +80,27 @@ public:
             }
         }
         return false;
+    }
+
+    void enterLoop(int cond_id, int end_id) {
+        loop_stack.push_back({cond_id, end_id});
+    }
+
+    void exitLoop() {
+        if (!loop_stack.empty()) {
+            loop_stack.pop_back();
+        }
+    }
+
+    LoopContext getCurrentLoop() const {
+        if (loop_stack.empty()) {
+            std::cerr << "Error: break/continue outside of loop\n";
+            assert(false && "No loop context available");
+        }
+        return loop_stack.back();
+    }
+
+    bool inLoop() const {
+        return !loop_stack.empty();
     }
 };

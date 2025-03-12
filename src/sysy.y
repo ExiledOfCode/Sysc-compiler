@@ -41,7 +41,7 @@ using namespace std;
   std::vector<std::unique_ptr<BaseAST>> *vec_ast_val;
 }
 
-%token INT RETURN CONST IF ELSE WHILE
+%token INT RETURN CONST IF ELSE WHILE BREAK CONTINUE
 %token AND OR
 %token EQ NE LT GT LE GE
 %token <str_val> IDENT
@@ -209,6 +209,24 @@ InitVal
 Stmt
   : OpenStmt
   | ClosedStmt
+  | BREAK ';' {
+    if (flag) cerr << "Parsed Stmt: Break" << endl;
+    $$ = new StmtAST(StmtAST::StmtKind::BREAK,
+                     nullptr,                    // lval
+                     nullptr,                    // exp
+                     nullptr,                    // then_stmt
+                     nullptr,                    // else_stmt
+                     nullptr);                   // block
+  }
+  | CONTINUE ';' {
+    if (flag) cerr << "Parsed Stmt: Continue" << endl;
+    $$ = new StmtAST(StmtAST::StmtKind::CONTINUE,
+                     nullptr,                    // lval
+                     nullptr,                    // exp
+                     nullptr,                    // then_stmt
+                     nullptr,                    // else_stmt
+                     nullptr);                   // block
+  }
   ;
 
 OpenStmt

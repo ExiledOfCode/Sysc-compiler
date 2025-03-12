@@ -33,7 +33,9 @@ public:
         SIMPLE_EXP,
         IF,
         IF_ELSE,
-        WHILE
+        WHILE,
+        BREAK,
+        CONTINUE
     };
 
     StmtKind kind;
@@ -113,6 +115,12 @@ public:
             }
             return dumpWhile();
         }
+        case StmtKind::BREAK: {
+            return dumpBreak();
+        }
+        case StmtKind::CONTINUE: {
+            return dumpContinue();
+        }
         default:
             std::cerr << "Unknown StmtKind\n";
             return -1;
@@ -172,31 +180,60 @@ private:
         return 0;
     }
 
-    int dumpWhile() const { // 新增 dumpWhile 方法
+    int dumpWhile() const {
         if (has_returned)
             return 0;
         int cond_block_id = block_counter;
         int body_block_id = block_counter;
         int end_block_id = block_counter++;
 
-        // 跳转到条件检查块
+        // 进入循环上下文
+        symTab.enterLoop(cond_block_id, end_block_id);
+
         std::cout << "jump %cond_" << cond_block_id << "\n";
 
-        // 条件检查块
         std::cout << "\n%cond_" << cond_block_id << ":\n";
         int cond_id = exp->Dump();
         std::cout << "br %" << cond_id << ", %body_" << body_block_id
                   << ", %end_" << end_block_id << "\n";
 
-        // 循环体块
         std::cout << "\n%body_" << body_block_id << ":\n";
         then_stmt->Dump();
         if (!has_returned)
             std::cout << "jump %cond_" << cond_block_id << "\n";
+        // 退出循环上下文
+        symTab.exitLoop();
 
-        // 结束块
         has_returned = 0;
         std::cout << "\n%end_" << end_block_id << ":\n";
+        return 0;
+    }
+
+    int dumpBreak() const {
+        if (!symTab.inLoop()) {
+            std::cerr << "Error: break statement outside of loop\n";
+            assert(false);
+        }
+        auto loop = symTab.getCurrentLoop();
+        if (has_returned)
+            return 0;
+        std::cout << "jump %end_" << loop.end_block_id << "\n";
+        // break 在循环中和return相似，也是必须退出这个域后才能输出后续语句
+        has_returned = 1;
+        return 0;
+    }
+
+    int dumpContinue() const {
+        if (!symTab.inLoop()) {
+            std::cerr << "Error: continue statement outside of loop\n";
+            assert(false);
+        }
+        auto loop = symTab.getCurrentLoop();
+        if (has_returned)
+            return 0;
+        std::cout << "jump %cond_" << loop.cond_block_id << "\n";
+        // continue 在循环中和return相似，也是必须退出这个域后才能输出后续语句
+        has_returned = 1;
         return 0;
     }
 };
