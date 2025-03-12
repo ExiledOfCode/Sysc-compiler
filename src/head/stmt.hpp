@@ -9,6 +9,8 @@ public:
     LValAST(std::string id) : ident(std::move(id)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         int nowId = TemValId;
         if (!symTab.variableExists(ident)) {
             std::cerr << "Error: Undefined variable '" << ident << "'\n";
@@ -52,6 +54,8 @@ public:
     }
 
     int Dump() const override {
+        if (has_returned)
+            return 0;
         switch (kind) {
         case StmtKind::ASSIGN: {
             int exp_id = exp->Dump();
@@ -67,10 +71,12 @@ public:
         case StmtKind::RETURN_EXP: {
             int exp_id = exp->Dump();
             std::cout << "ret %" << exp_id << "\n";
+            has_returned = 1;
             return 0;
         }
         case StmtKind::RETURN_EMPTY: {
             std::cout << "ret\n";
+            has_returned = 1;
             return 0;
         }
         case StmtKind::BLOCK: {
@@ -107,8 +113,10 @@ public:
 
 private:
     int dumpIf() const {
+        if (has_returned)
+            return 0;
         int cond_id = exp->Dump();
-        int then_block_id = block_counter++;
+        int then_block_id = block_counter;
         int end_block_id = block_counter++;
 
         std::cout << "br %" << cond_id << ", %then_" << then_block_id
@@ -116,29 +124,42 @@ private:
 
         std::cout << "\n%then_" << then_block_id << ":\n";
         then_stmt->Dump();
-        std::cout << "jump %end_" << end_block_id << "\n";
+        if (!has_returned)
+            std::cout << "jump %end_" << end_block_id << "\n";
 
+        has_returned = 0;
         std::cout << "\n%end_" << end_block_id << ":\n";
         return 0;
     }
 
     int dumpIfElse() const {
+        if (has_returned)
+            return 0;
         int cond_id = exp->Dump();
-        int then_block_id = block_counter++;
-        int else_block_id = block_counter++;
+        int then_block_id = block_counter;
+        int else_block_id = block_counter;
         int end_block_id = block_counter++;
 
         std::cout << "br %" << cond_id << ", %then_" << then_block_id
                   << ", %else_" << else_block_id << "\n";
 
+        has_returned = 0;
         std::cout << "\n%then_" << then_block_id << ":\n";
         then_stmt->Dump();
-        std::cout << "jump %end_" << end_block_id << "\n";
+        int has1 = has_returned;
+        if (!has1)
+            std::cout << "jump %end_" << end_block_id << "\n";
 
+        has_returned = 0;
         std::cout << "\n%else_" << else_block_id << ":\n";
         else_stmt->Dump();
-        std::cout << "jump %end_" << end_block_id << "\n";
+        int has2 = has_returned;
+        if (!has2)
+            std::cout << "jump %end_" << end_block_id << "\n";
 
+        if (has1 && has2)
+            return 0;
+        has_returned = 0;
         std::cout << "\n%end_" << end_block_id << ":\n";
         return 0;
     }

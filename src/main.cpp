@@ -23,8 +23,8 @@ cmake --build build --parallel 4   # 增量构建
 // 其次, 因为这个文件不是我们自己写的, 而是被 Bison 生成出来的
 // 你的代码编辑器/IDE 很可能找不到这个文件, 然后会给你报错 (虽然编译不会出错)
 // 看起来会很烦人, 于是干脆采用这种看起来 dirty 但实际很有效的手段
-
-int TemValId = 0; // 全局临时变量编号
+bool has_returned = 0; // 全局控制输出流标记
+int TemValId = 0;      // 全局临时变量编号
 int block_counter = 0;
 SymbolTable symTab;
 

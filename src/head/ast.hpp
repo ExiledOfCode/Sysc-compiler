@@ -6,8 +6,7 @@
 #include <vector>
 
 extern SymbolTable symTab;
-extern int TemValId; // 声明全局变量，不初始化
-
+extern bool has_returned;
 class BaseAST {
 public:
     virtual ~BaseAST() = default;
@@ -22,6 +21,8 @@ public:
         : func_def(std::move(func_def_ptr)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         func_def->Dump();
         return 0;
     }
@@ -39,11 +40,14 @@ public:
           block(std::move(block_ptr)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         std::cout << "fun ";
         std::cout << "@" << ident << "() : ";
         func_type->Dump();
         std::cout << "{\n";
         std::cout << "%entry:\n";
+        has_returned = 0;
         block->Dump();
         std::cout << "}\n";
         return 0;
@@ -57,6 +61,8 @@ public:
     FuncTypeAST(std::string type_name) : type(std::move(type_name)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         if (type == "int")
             std::cout << "i32 ";
         return 0;
@@ -70,8 +76,12 @@ public:
         : block_items(std::move(items)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         symTab.enterScope(); // 进入块作用域
         for (const auto &item : block_items) {
+            if (has_returned)
+                break;
             item->Dump();
         }
         symTab.exitScope(); // 退出块作用域
@@ -88,6 +98,8 @@ public:
         : item(std::move(item_ptr)), is_decl(is_decl_flag) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         return item->Dump();
     }
 };
@@ -101,6 +113,8 @@ public:
         : decl(std::move(decl_ptr)), is_const(is_const_flag) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         decl->Dump();
         return 0;
     }
@@ -116,6 +130,8 @@ public:
         : btype(std::move(btype_ptr)), const_defs(std::move(defs)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         for (const auto &def : const_defs) {
             def->Dump();
         }
@@ -133,6 +149,8 @@ public:
         : btype(std::move(btype_ptr)), var_defs(std::move(defs)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         for (const auto &def : var_defs) {
             def->Dump();
         }
@@ -147,6 +165,8 @@ public:
     BTypeAST(std::string type_name) : type(std::move(type_name)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         if (type == "int")
             std::cout << "i32 ";
         return 0;
@@ -162,6 +182,8 @@ public:
         // 不再调用 symTab.addVariable
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         // 在 Dump 时添加常量到符号表
         symTab.addVariable(ident, true); // 添加常量
         int val_id = const_init_val->Dump();
@@ -181,6 +203,8 @@ public:
         // 不再调用 symTab.addVariable
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         // 在 Dump 时添加变量到符号表
         symTab.addVariable(ident, false); // 添加非常量变量
         std::string modified_name = symTab.findVariable(ident);
@@ -200,6 +224,8 @@ public:
     ConstInitValAST(std::unique_ptr<BaseAST> exp) : const_exp(std::move(exp)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         return const_exp->Dump();
     }
 };
@@ -211,6 +237,8 @@ public:
     InitValAST(std::unique_ptr<BaseAST> exp_ptr) : exp(std::move(exp_ptr)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         return exp->Dump();
     }
 };
@@ -222,6 +250,8 @@ public:
     ConstExpAST(std::unique_ptr<BaseAST> exp_ptr) : exp(std::move(exp_ptr)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         return exp->Dump();
     }
 };

@@ -10,6 +10,8 @@ public:
         : add_exp(std::move(add_exp_ptr)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         return add_exp->Dump();
     }
 };
@@ -32,6 +34,8 @@ public:
           op(std::move(operation)), is_unary(false) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         if (is_unary) {
             return unary_exp->Dump();
         } else {
@@ -71,6 +75,8 @@ public:
           is_mul(false) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         if (is_mul) {
             return mul_exp->Dump();
         } else {
@@ -107,6 +113,8 @@ public:
           is_add(false) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         if (is_add) {
             return add_exp->Dump();
         } else {
@@ -149,6 +157,8 @@ public:
           is_rel(false) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         if (is_rel) {
             return rel_exp->Dump();
         } else {
@@ -183,6 +193,8 @@ public:
           eq_exp_right(std::move(eq_exp_right_ptr)), is_eq(false) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         if (is_eq) {
             return eq_exp->Dump();
         } else {
@@ -215,6 +227,8 @@ public:
           land_exp_right(std::move(land_exp_right_ptr)), is_land(false) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         if (is_land) {
             return land_exp->Dump();
         } else {
@@ -237,6 +251,8 @@ public:
     NumberAST(int num) : number(num) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         int nowId = TemValId;
         std::cout << "%" << TemValId++ << " = add 0, " << number << "\n";
         return nowId;
@@ -260,6 +276,8 @@ public:
     }
 
     int Dump() const override {
+        if (has_returned)
+            return 0;
         switch (type) {
         case EXP:
             return exp->Dump();
@@ -288,6 +306,8 @@ public:
           unary_exp(std::move(unary_exp_ptr)), is_primary(false) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         if (is_primary) {
             return primary_exp->Dump();
         } else {
@@ -313,6 +333,8 @@ public:
     UnaryOpAST(std::string operation) : op(std::move(operation)) {
     }
     int Dump() const override {
+        if (has_returned)
+            return 0;
         return 0;
     }
 };

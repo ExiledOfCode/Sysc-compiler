@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
+extern int TemValId; // 声明全局变量，不初始化
 class SymbolTable {
 public:
     struct Symbol {
@@ -42,13 +42,13 @@ public:
     // 添加变量
     void addVariable(const std::string &ident, bool is_const) {
         std::string modified_name =
-            "@" + ident + "_" + std::to_string(current_level);
+            "@" + ident + "_" + std::to_string(TemValId);
         if (is_const)
             modified_name += "_const";
 
         if (table[current_level].find(ident) != table[current_level].end()) {
             std::cerr << "Error: Variable '" << ident << "' conflicts at level "
-                      << current_level << "\n";
+                      << TemValId << "\n";
             assert(false && "Error: Variable name conflicts with existing "
                             "constant or variable");
         }
