@@ -109,11 +109,41 @@ void generate_riscv(const koopa_raw_value_t &value, std::ostream &out) {
     case KOOPA_RVT_LOAD:
         generate_riscv(value->kind.data.load, value, out);
         break;
+    case KOOPA_RVT_JUMP:
+        generate_riscv(value->kind.data.jump, out);
+        break;
+    case KOOPA_RVT_BRANCH: // 新增分支指令支持
+        generate_riscv(value->kind.data.branch, out);
+        break;
     default:
         assert(false); // 未处理的指令类型
     }
 }
+// 访问 jump 指令
+void generate_riscv(const koopa_raw_jump_t &jump, std::ostream &out) {
+    const koopa_raw_basic_block_t target = jump.target;
+    out << "  j " << (target->name + 1)
+        << "\n"; // 跳过 '%' 前缀，直接跳转到目标标签
+}
+// 访问 br 分支命令
+void generate_riscv(const koopa_raw_branch_t &branch, std::ostream &out) {
+    const koopa_raw_value_t cond = branch.cond;               // 条件值
+    const koopa_raw_basic_block_t true_bb = branch.true_bb;   // then 块
+    const koopa_raw_basic_block_t false_bb = branch.false_bb; // else 块
 
+    // 加载条件值到 t0
+    if (cond->kind.tag == KOOPA_RVT_INTEGER) {
+        out << "  li t0, " << cond->kind.data.integer.value << "\n";
+    } else {
+        int cond_offset = get_stack_offset(cond);
+        out << "  lw t0, " << cond_offset << "(sp)\n";
+    }
+
+    // 生成条件分支：如果 t0 != 0，则跳转到 true_bb，否则跳转到 false_bb
+    out << "  bnez t0, " << (true_bb->name + 1)
+        << "\n"; // 如果条件为真，跳转到 then 块
+    out << "  j " << (false_bb->name + 1) << "\n"; // 否则跳转到 else 块
+}
 // 访问 load 指令
 void generate_riscv(const koopa_raw_load_t &load,
                     const koopa_raw_value_t &value, std::ostream &out) {

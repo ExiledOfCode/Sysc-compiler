@@ -35,3 +35,9 @@ void generate_riscv(const koopa_raw_binary_t &binary,
 // 访问 load 指令
 void generate_riscv(const koopa_raw_load_t &load,
                     const koopa_raw_value_t &value, std::ostream &out);
+
+// 访问 jump 指令
+void generate_riscv(const koopa_raw_jump_t &jump, std::ostream &out);
+
+// 访问 br 分支指令
+void generate_riscv(const koopa_raw_branch_t &jump, std::ostream &out);
