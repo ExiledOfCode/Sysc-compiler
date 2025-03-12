@@ -56,8 +56,11 @@ void generate_riscv(const koopa_raw_function_t &func, std::ostream &out) {
             if (value->kind.tag == KOOPA_RVT_BINARY ||
                 value->kind.tag == KOOPA_RVT_RETURN ||
                 value->kind.tag == KOOPA_RVT_ALLOC ||
-                value->kind.tag == KOOPA_RVT_LOAD) { // 添加 LOAD
-                allocate_stack(value);               // 为每个需要栈空间的值分配
+                value->kind.tag == KOOPA_RVT_LOAD ||
+                value->kind.tag == KOOPA_RVT_STORE ||
+                value->kind.tag == KOOPA_RVT_BRANCH ||
+                value->kind.tag == KOOPA_RVT_JUMP) {
+                allocate_stack(value);
             }
         }
     }
