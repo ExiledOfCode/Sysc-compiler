@@ -41,18 +41,17 @@ using namespace std;
   std::vector<std::unique_ptr<BaseAST>> *vec_ast_val;
 }
 
-%token INT RETURN CONST IF ELSE WHILE BREAK CONTINUE
+%token INT VOID RETURN CONST IF ELSE WHILE BREAK CONTINUE
 %token AND OR
 %token EQ NE LT GT LE GE
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
-%type <ast_val> CompUnit FuncDef FuncType Block Decl ConstDecl VarDecl BType
+%type <ast_val> CompUnit FuncDefs FuncDef FuncType Block Decl ConstDecl VarDecl BType
 %type <ast_val> ConstDef ConstInitVal VarDef InitVal Exp PrimaryExp UnaryExp UnaryOp
 %type <ast_val> Number LVal ConstExp BlockItem AddExp MulExp RelExp EqExp LAndExp LOrExp
-%type <ast_val> Stmt OpenStmt ClosedStmt
-%type <vec_ast_val> BlockItemList ConstDefList VarDefList
-
+%type <ast_val> Stmt OpenStmt ClosedStmt FuncFParam
+%type <vec_ast_val> BlockItemList ConstDefList VarDefList  FuncFParams FuncRParams
 %left OR
 %left AND
 %left EQ NE
@@ -63,26 +62,74 @@ using namespace std;
 
 %%
 
+// CompUnit ::= FuncDefs;
 CompUnit
-  : FuncDef {
-    if (flag) cerr << "Parsed CompUnit: Function Definition" << endl;
+  : FuncDefs {
+    if (flag) cerr << "解析 CompUnit: 函数定义列表" << endl;
     auto comp_unit = make_unique<CompUnitAST>(unique_ptr<BaseAST>($1));
     ast = move(comp_unit);
   }
   ;
 
+// FuncDefs ::= {FuncDef};
+FuncDefs
+  : /* empty */ {
+    if (flag) cerr << "解析 FuncDefs: 空函数列表" << endl;
+    $$ = new FuncDefsAST(make_unique<vector<unique_ptr<BaseAST>>>());
+  }
+  | FuncDefs FuncDef {
+    if (flag) cerr << "解析 FuncDefs: 添加函数定义，总数 " << dynamic_cast<FuncDefsAST*>($1)->func_defs->size() + 1 << endl;
+    dynamic_cast<FuncDefsAST*>($1)->func_defs->push_back(unique_ptr<BaseAST>($2));
+    $$ = $1;
+  }
+  ;
+
+// FuncDef ::= FuncType IDENT "(" [FuncFParams] ")" Block;
 FuncDef
   : FuncType IDENT '(' ')' Block {
-    if (flag) cerr << "Parsed FuncDef: " << *$2 << " with type " << dynamic_cast<FuncTypeAST*>($1)->type << endl;
-    $$ = new FuncDefAST(unique_ptr<BaseAST>($1), *$2, unique_ptr<BaseAST>($5));
+    if (flag) cerr << "解析 FuncDef: " << *$2 << " 无参数" << endl;
+    $$ = new FuncDefAST(unique_ptr<BaseAST>($1), *$2, nullptr, unique_ptr<BaseAST>($5));
+    delete $2;
+  }
+  | FuncType IDENT '(' FuncFParams ')' Block {
+    if (flag) cerr << "解析 FuncDef: " << *$2 << " 带有参数" << endl;
+    $$ = new FuncDefAST(unique_ptr<BaseAST>($1), *$2, unique_ptr<BaseAST>(new FuncFParamsAST(std::move(*$4))), unique_ptr<BaseAST>($6));
     delete $2;
   }
   ;
 
+// FuncType ::= "void" | "int";
 FuncType
   : INT {
-    if (flag) cerr << "Parsed FuncType: int" << endl;
+    if (flag) cerr << "解析 FuncType: int" << endl;
     $$ = new FuncTypeAST("int");
+  }
+  | VOID {
+    if (flag) cerr << "解析 FuncType: void" << endl;
+    $$ = new FuncTypeAST("void");
+  }
+  ;
+
+// FuncFParams ::= FuncFParam {"," FuncFParam};
+FuncFParams
+  : FuncFParam {
+    if (flag) cerr << "解析 FuncFParams: 单一参数" << endl;
+    $$ = new vector<unique_ptr<BaseAST>>();
+    $$->push_back(unique_ptr<BaseAST>($1));
+  }
+  | FuncFParams ',' FuncFParam {
+    if (flag) cerr << "解析 FuncFParams: 添加参数，总数 " << $1->size() + 1 << endl;
+    $1->push_back(unique_ptr<BaseAST>($3));
+    $$ = $1;
+  }
+  ;
+
+// FuncFParam ::= BType IDENT;
+FuncFParam
+  : BType IDENT {
+    if (flag) cerr << "解析 FuncFParam: " << *$2 << endl;
+    $$ = new FuncFParamAST(unique_ptr<BaseAST>($1), *$2);
+    delete $2;
   }
   ;
 
@@ -440,20 +487,40 @@ LVal
   }
   ;
 
+// UnaryExp ::= ... | IDENT "(" [FuncRParams] ")" | ...;
 UnaryExp
   : PrimaryExp {
-    if (flag) cerr << "Parsed UnaryExp: PrimaryExp" << endl;
-    $$ = new UnaryExpAST(unique_ptr<BaseAST>($1));
+    if (flag) cerr << "解析 UnaryExp: PrimaryExp" << endl;
+    $$ = new UnaryExpAST(UnaryExpAST::StmtKind::PRIMARY, nullptr, nullptr, unique_ptr<BaseAST>($1));
   }
   | UnaryOp UnaryExp %prec UNARY_OP {
     UnaryOpAST* unary_op = dynamic_cast<UnaryOpAST*>($1);
-    if (flag) cerr << "Parsed UnaryExp: UnaryOp " << unary_op->op << endl;
-    if (unary_op) {
-      $$ = new UnaryExpAST(unary_op->op, unique_ptr<BaseAST>($2));
-    } else {
-      yyerror(ast, "Invalid UnaryOpAST cast");
-      $$ = nullptr;
-    }
+    if (flag) cerr << "解析 UnaryExp: 一元运算符 " << unary_op->op << endl;
+    $$ = new UnaryExpAST(UnaryExpAST::StmtKind::UNARY_OP, unique_ptr<BaseAST>($1), unique_ptr<BaseAST>($2), nullptr);
+  }
+  | IDENT '(' ')' {
+    if (flag) cerr << "解析 UnaryExp: 函数调用 " << *$1 << " 无参数" << endl;
+    $$ = new UnaryExpAST(UnaryExpAST::StmtKind::CALL, nullptr, nullptr, nullptr, *$1, nullptr);
+    delete $1;
+  }
+  | IDENT '(' FuncRParams ')' {
+    if (flag) cerr << "解析 UnaryExp: 函数调用 " << *$1 << " 有参数" << endl;
+    $$ = new UnaryExpAST(UnaryExpAST::StmtKind::CALL, nullptr, nullptr, nullptr, *$1, unique_ptr<BaseAST>(new FuncRParamsAST(std::move(*$3))));
+    delete $1;
+  }
+  ;
+
+// FuncRParams ::= Exp {"," Exp};
+FuncRParams
+  : Exp {
+    if (flag) cerr << "解析 FuncRParams: 单一实参" << endl;
+    $$ = new vector<unique_ptr<BaseAST>>();
+    $$->push_back(unique_ptr<BaseAST>($1));
+  }
+  | FuncRParams ',' Exp {
+    if (flag) cerr << "解析 FuncRParams: 添加实参，总数 " << $1->size() + 1 << endl;
+    $1->push_back(unique_ptr<BaseAST>($3));
+    $$ = $1;
   }
   ;
 

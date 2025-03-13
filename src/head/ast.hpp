@@ -13,48 +13,108 @@ public:
     virtual int Dump() const = 0; // 纯虚函数，输出 Koopa IR 并返回临时变量 ID
 };
 
-// CompUnit ::= FuncDef;
+// CompUnit ::= FuncDefs;
 class CompUnitAST : public BaseAST {
 public:
-    std::unique_ptr<BaseAST> func_def;
-    CompUnitAST(std::unique_ptr<BaseAST> func_def_ptr)
-        : func_def(std::move(func_def_ptr)) {
+    std::unique_ptr<BaseAST> func_defs; // 函数定义列表
+    CompUnitAST(std::unique_ptr<BaseAST> func_defs_ptr)
+        : func_defs(std::move(func_defs_ptr)) {
     }
     int Dump() const override {
         if (has_returned)
             return 0;
-        func_def->Dump();
+        func_defs->Dump();
         return 0;
     }
 };
 
-// FuncDef ::= FuncType IDENT "(" ")" Block;
-class FuncDefAST : public BaseAST {
+// FuncDefs ::= {FuncDef};
+class FuncDefsAST : public BaseAST {
 public:
-    std::unique_ptr<BaseAST> func_type;
-    std::string ident;
-    std::unique_ptr<BaseAST> block;
-    FuncDefAST(std::unique_ptr<BaseAST> func_type_ptr, std::string id,
-               std::unique_ptr<BaseAST> block_ptr)
-        : func_type(std::move(func_type_ptr)), ident(std::move(id)),
-          block(std::move(block_ptr)) {
+    std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> func_defs;
+    FuncDefsAST(std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> defs)
+        : func_defs(std::move(defs)) {
     }
     int Dump() const override {
         if (has_returned)
             return 0;
-        std::cout << "fun ";
-        std::cout << "@" << ident << "() : ";
+        for (const auto &func : *func_defs) {
+            if (has_returned)
+                break;
+            func->Dump();
+            has_returned = 0;
+        }
+        return 0;
+    }
+};
+// FuncFParams ::= FuncFParam {"," FuncFParam};
+class FuncFParamsAST : public BaseAST {
+public:
+    std::vector<std::unique_ptr<BaseAST>> params;
+    FuncFParamsAST(std::vector<std::unique_ptr<BaseAST>> p)
+        : params(std::move(p)) {
+    }
+    int Dump() const override {
+        if (has_returned)
+            return 0;
+        for (size_t i = 0; i < params.size(); ++i) {
+            params[i]->Dump();
+            if (i < params.size() - 1)
+                std::cout << ", ";
+        }
+        return 0;
+    }
+};
+
+// FuncFParam ::= BType IDENT;
+class FuncFParamAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> btype;
+    std::string ident;
+    FuncFParamAST(std::unique_ptr<BaseAST> btype_ptr, std::string id)
+        : btype(std::move(btype_ptr)), ident(std::move(id)) {
+    }
+    int Dump() const override {
+        if (has_returned)
+            return 0;
+        btype->Dump();
+        std::cout << "@" << ident;
+        return 0;
+    }
+};
+// FuncDef ::= FuncType IDENT "(" [FuncFParams] ")" Block;
+class FuncDefAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> func_type;
+    std::string ident;
+    std::unique_ptr<BaseAST> func_params; // 可选参数列表
+    std::unique_ptr<BaseAST> block;
+    FuncDefAST(std::unique_ptr<BaseAST> func_type_ptr, std::string id,
+               std::unique_ptr<BaseAST> params_ptr,
+               std::unique_ptr<BaseAST> block_ptr)
+        : func_type(std::move(func_type_ptr)), ident(std::move(id)),
+          func_params(std::move(params_ptr)), block(std::move(block_ptr)) {
+    }
+    int Dump() const override {
+        if (has_returned)
+            return 0;
+        std::cout << "fun @" << ident << "(";
+        if (func_params)
+            func_params->Dump();
+        std::cout << ") ";
         func_type->Dump();
-        std::cout << "{\n";
-        std::cout << "%entry:\n";
+        std::cout << "{\n%entry:\n";
         has_returned = 0;
         block->Dump();
+        if (!has_returned) {
+            std::cout << "ret" << std::endl;
+        }
         std::cout << "}\n";
         return 0;
     }
 };
 
-// FuncType ::= "int";
+// FuncType ::= "void" | "int";
 class FuncTypeAST : public BaseAST {
 public:
     std::string type;
@@ -64,7 +124,26 @@ public:
         if (has_returned)
             return 0;
         if (type == "int")
-            std::cout << "i32 ";
+            std::cout << ": i32 ";
+        else if (type == "void")
+            std::cout << "";
+        return 0;
+    }
+};
+
+// FuncRParams ::= Exp {"," Exp};
+class FuncRParamsAST : public BaseAST {
+public:
+    std::vector<std::unique_ptr<BaseAST>> params;
+    FuncRParamsAST(std::vector<std::unique_ptr<BaseAST>> p)
+        : params(std::move(p)) {
+    }
+    int Dump() const override {
+        if (has_returned)
+            return 0;
+        for (const auto &param : params) {
+            param->Dump();
+        }
         return 0;
     }
 };

@@ -285,42 +285,6 @@ public:
     }
 };
 
-class UnaryExpAST : public BaseAST {
-public:
-    std::unique_ptr<BaseAST> primary_exp;
-    std::string unary_op;
-    std::unique_ptr<BaseAST> unary_exp;
-    bool is_primary;
-    UnaryExpAST(std::unique_ptr<BaseAST> primary_exp_ptr)
-        : primary_exp(std::move(primary_exp_ptr)), unary_exp(nullptr),
-          is_primary(true) {
-    }
-    UnaryExpAST(std::string op, std::unique_ptr<BaseAST> unary_exp_ptr)
-        : primary_exp(nullptr), unary_op(std::move(op)),
-          unary_exp(std::move(unary_exp_ptr)), is_primary(false) {
-    }
-    int Dump() const override {
-        if (has_returned)
-            return 0;
-        if (is_primary) {
-            return primary_exp->Dump();
-        } else {
-            int operand_id = unary_exp->Dump();
-            int nowId = TemValId;
-            if (unary_op == "+") {
-                return operand_id;
-            } else if (unary_op == "-") {
-                std::cout << "%" << TemValId++ << " = sub 0, %" << operand_id
-                          << "\n";
-            } else if (unary_op == "!") {
-                std::cout << "%" << TemValId++ << " = eq 0, %" << operand_id
-                          << "\n";
-            }
-            return nowId;
-        }
-    }
-};
-
 class UnaryOpAST : public BaseAST {
 public:
     std::string op;
@@ -330,5 +294,79 @@ public:
         if (has_returned)
             return 0;
         return 0;
+    }
+};
+
+// UnaryExp ::= ... | IDENT "(" [FuncRParams] ")" | ...;
+class UnaryExpAST : public BaseAST {
+public:
+    enum class StmtKind {
+        PRIMARY,  // 主表达式
+        UNARY_OP, // 一元运算符
+        CALL      // 函数调用
+    };
+    StmtKind kind;
+    std::unique_ptr<BaseAST> unary_op;
+    std::unique_ptr<BaseAST> unary_exp;
+    std::unique_ptr<BaseAST> primary_exp;
+    std::string ident;                     // 函数名（仅用于 CALL）
+    std::unique_ptr<BaseAST> func_rparams; // 函数实参（仅用于 CALL）
+
+    UnaryExpAST(StmtKind k, std::unique_ptr<BaseAST> op = nullptr,
+                std::unique_ptr<BaseAST> exp = nullptr,
+                std::unique_ptr<BaseAST> prim = nullptr, std::string id = "",
+                std::unique_ptr<BaseAST> rparams = nullptr)
+        : kind(k), unary_op(std::move(op)), unary_exp(std::move(exp)),
+          primary_exp(std::move(prim)), ident(std::move(id)),
+          func_rparams(std::move(rparams)) {
+    }
+    int Dump() const override {
+        if (has_returned)
+            return 0;
+        switch (kind) {
+        case StmtKind::PRIMARY:
+            return primary_exp->Dump();
+        case StmtKind::UNARY_OP: {
+            int operand_id = unary_exp->Dump();
+            UnaryOpAST *op = dynamic_cast<UnaryOpAST *>(unary_op.get());
+            if (op->op == "+")
+                return operand_id;
+            else if (op->op == "-") {
+                std::cout << "%" << TemValId++ << " = sub 0, %" << operand_id
+                          << "\n";
+            } else if (op->op == "!") {
+                std::cout << "%" << TemValId++ << " = eq 0, %" << operand_id
+                          << "\n";
+            }
+            return TemValId - 1;
+        }
+        case StmtKind::CALL: {
+            if (func_rparams) {
+                std::vector<int> param_ids;
+                FuncRParamsAST *rparams =
+                    dynamic_cast<FuncRParamsAST *>(func_rparams.get());
+                for (const auto &param : rparams->params) {
+                    param_ids.push_back(param->Dump());
+                }
+                if (symTab.findFunction(ident).return_type == "void")
+                    std::cout << "call @" << ident << "(";
+                else
+                    std::cout << "%" << TemValId++ << " = call @" << ident
+                              << "(";
+                for (size_t i = 0; i < param_ids.size(); ++i) {
+                    std::cout << "%" << param_ids[i];
+                    if (i < param_ids.size() - 1)
+                        std::cout << ", ";
+                }
+                std::cout << ")\n";
+            } else {
+                std::cout << "%" << TemValId++ << " = call @" << ident
+                          << "()\n";
+            }
+            return TemValId - 1;
+        }
+        default:
+            return 0;
+        }
     }
 };
