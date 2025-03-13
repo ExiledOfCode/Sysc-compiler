@@ -360,8 +360,11 @@ public:
                 }
                 std::cout << ")\n";
             } else {
-                std::cout << "%" << TemValId++ << " = call @" << ident
-                          << "()\n";
+                if (symTab.findFunction(ident).return_type == "void")
+                    std::cout << "call @" << ident << "()" << std::endl;
+                else
+                    std::cout << "%" << TemValId++ << " = call @" << ident
+                              << "()";
             }
             return TemValId - 1;
         }

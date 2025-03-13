@@ -41,26 +41,10 @@ public:
         for (const auto &func : *func_defs) {
             if (has_returned)
                 break;
+            symTab.enterScope(); // 进入块作用域
             func->Dump();
             has_returned = 0;
-        }
-        return 0;
-    }
-};
-// FuncFParams ::= FuncFParam {"," FuncFParam};
-class FuncFParamsAST : public BaseAST {
-public:
-    std::vector<std::unique_ptr<BaseAST>> params;
-    FuncFParamsAST(std::vector<std::unique_ptr<BaseAST>> p)
-        : params(std::move(p)) {
-    }
-    int Dump() const override {
-        if (has_returned)
-            return 0;
-        for (size_t i = 0; i < params.size(); ++i) {
-            params[i]->Dump();
-            if (i < params.size() - 1)
-                std::cout << ", ";
+            symTab.exitScope(); // 进入块作用域
         }
         return 0;
     }
@@ -77,43 +61,36 @@ public:
     int Dump() const override {
         if (has_returned)
             return 0;
+        std::cout << symTab.findVariable(ident) << ": ";
         btype->Dump();
-        std::cout << "@" << ident;
         return 0;
     }
 };
-// FuncDef ::= FuncType IDENT "(" [FuncFParams] ")" Block;
-class FuncDefAST : public BaseAST {
+// FuncFParams ::= FuncFParam {"," FuncFParam};
+class FuncFParamsAST : public BaseAST {
 public:
-    std::unique_ptr<BaseAST> func_type;
-    std::string ident;
-    std::unique_ptr<BaseAST> func_params; // 可选参数列表
-    std::unique_ptr<BaseAST> block;
-    FuncDefAST(std::unique_ptr<BaseAST> func_type_ptr, std::string id,
-               std::unique_ptr<BaseAST> params_ptr,
-               std::unique_ptr<BaseAST> block_ptr)
-        : func_type(std::move(func_type_ptr)), ident(std::move(id)),
-          func_params(std::move(params_ptr)), block(std::move(block_ptr)) {
+    std::vector<std::unique_ptr<BaseAST>> params;
+    FuncFParamsAST(std::vector<std::unique_ptr<BaseAST>> p)
+        : params(std::move(p)) {
     }
     int Dump() const override {
         if (has_returned)
             return 0;
-        std::cout << "fun @" << ident << "(";
-        if (func_params)
-            func_params->Dump();
-        std::cout << ") ";
-        func_type->Dump();
-        std::cout << "{\n%entry:\n";
-        has_returned = 0;
-        block->Dump();
-        if (!has_returned) {
-            std::cout << "ret" << std::endl;
+        for (size_t i = 0; i < params.size(); ++i) {
+            FuncFParamAST *param_ast =
+                dynamic_cast<FuncFParamAST *>(params[i].get());
+            if (param_ast) {
+                // 添加参数到符号表（非常量）
+                symTab.addVariable(param_ast->ident, false);
+                // 输出参数定义
+                param_ast->Dump();
+                if (i < params.size() - 1)
+                    std::cout << ", ";
+            }
         }
-        std::cout << "}\n";
         return 0;
     }
 };
-
 // FuncType ::= "void" | "int";
 class FuncTypeAST : public BaseAST {
 public:
@@ -144,6 +121,90 @@ public:
         for (const auto &param : params) {
             param->Dump();
         }
+        return 0;
+    }
+};
+
+// BType ::= "int";
+class BTypeAST : public BaseAST {
+public:
+    std::string type;
+    BTypeAST(std::string type_name) : type(std::move(type_name)) {
+    }
+    int Dump() const override {
+        if (has_returned)
+            return 0;
+        if (type == "int")
+            std::cout << "i32 ";
+        return 0;
+    }
+};
+
+// FuncDef ::= FuncType IDENT "(" [FuncFParams] ")" Block;
+class FuncDefAST : public BaseAST {
+public:
+    std::unique_ptr<BaseAST> func_type;
+    std::string ident;
+    std::unique_ptr<BaseAST> func_params; // 可选参数列表
+    std::unique_ptr<BaseAST> block;
+    FuncDefAST(std::unique_ptr<BaseAST> func_type_ptr, std::string id,
+               std::unique_ptr<BaseAST> params_ptr,
+               std::unique_ptr<BaseAST> block_ptr)
+        : func_type(std::move(func_type_ptr)), ident(std::move(id)),
+          func_params(std::move(params_ptr)), block(std::move(block_ptr)) {
+    }
+    int Dump() const override {
+        if (has_returned)
+            return 0;
+
+        // 获取返回类型
+        FuncTypeAST *func_type_ast =
+            dynamic_cast<FuncTypeAST *>(func_type.get());
+        if (!func_type_ast) {
+            std::cerr << "错误: 函数类型无效\n";
+            assert(false);
+        }
+        std::string return_type = func_type_ast->type;
+
+        // 获取参数类型列表
+        std::vector<std::string> param_types;
+        if (func_params) {
+            FuncFParamsAST *params_ast =
+                dynamic_cast<FuncFParamsAST *>(func_params.get());
+            if (params_ast) {
+                for (const auto &param : params_ast->params) {
+                    FuncFParamAST *param_ast =
+                        dynamic_cast<FuncFParamAST *>(param.get());
+                    if (param_ast && param_ast->btype) {
+                        BTypeAST *btype_ast =
+                            dynamic_cast<BTypeAST *>(param_ast->btype.get());
+                        if (btype_ast) {
+                            param_types.push_back(btype_ast->type);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 将函数添加到符号表
+        symTab.addFunction(ident, return_type, param_types);
+
+        // 输出函数定义
+        std::cout << "fun @" << ident << "(";
+        if (func_params) {
+            func_params->Dump(); // 输出参数并将其加入符号表
+        }
+        std::cout << ") ";
+        func_type->Dump();
+        std::cout << "{\n%entry:\n";
+
+        // 重置返回标志并输出函数体
+        has_returned = 0;
+        block->Dump();
+        if (!has_returned) {
+            std::cout << "ret" << std::endl;
+        }
+        std::cout << "}\n";
         return 0;
     }
 };
@@ -233,21 +294,6 @@ public:
         for (const auto &def : var_defs) {
             def->Dump();
         }
-        return 0;
-    }
-};
-
-// BType ::= "int";
-class BTypeAST : public BaseAST {
-public:
-    std::string type;
-    BTypeAST(std::string type_name) : type(std::move(type_name)) {
-    }
-    int Dump() const override {
-        if (has_returned)
-            return 0;
-        if (type == "int")
-            std::cout << "i32 ";
         return 0;
     }
 };

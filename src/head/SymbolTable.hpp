@@ -68,7 +68,7 @@ public:
     void addVariable(const std::string &ident, bool is_const) {
         // 生成修改后的变量名，例如 @x_0 或 @x_0_const
         std::string modified_name =
-            "@" + ident + "_" + std::to_string(TemValId);
+            "@" + ident + "_" + std::to_string(TemValId++);
         if (is_const) {
             modified_name += "_const"; // 常量变量名后缀
         }

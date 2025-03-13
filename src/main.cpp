@@ -23,8 +23,7 @@ cmake --build build --parallel 4   # 增量构建
     每个%开头的标识符都是一个作用域块
 */
 bool has_returned = 0; // 全局控制输出流标记
-
-int TemValId = 0; // 全局变量编号（临时，局部，全局）
+int TemValId = 0;      // 全局变量编号（临时，局部，全局）
 int block_counter = 0;
 SymbolTable symTab;
 
