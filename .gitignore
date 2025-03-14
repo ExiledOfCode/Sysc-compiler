@@ -8,3 +8,5 @@ koopa.h
 hello.c
 all_text_ast.txt
 all_text_riscv.txt
+hello
+hello.o

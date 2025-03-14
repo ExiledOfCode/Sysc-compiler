@@ -364,7 +364,7 @@ public:
                     std::cout << "call @" << ident << "()" << std::endl;
                 else
                     std::cout << "%" << TemValId++ << " = call @" << ident
-                              << "()";
+                              << "()" << std::endl;
             }
             return TemValId - 1;
         }

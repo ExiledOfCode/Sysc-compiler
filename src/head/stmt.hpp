@@ -17,7 +17,12 @@ public:
             assert(false && "Undefined variable");
         }
         std::string modified_name = symTab.findVariable(ident);
-        std::cout << "%" << TemValId++ << " = load " << modified_name << "\n";
+        if (modified_name[0] == '@') // 是一个局部变量（局部变量都是地址）
+            std::cout << "%" << TemValId++ << " = load " << modified_name
+                      << "\n";
+        else // 是一个临时变量（临时变量都是数）
+            std::cout << "%" << TemValId++ << " = add 0, " << modified_name
+                      << "\n";
         return nowId;
     }
 };

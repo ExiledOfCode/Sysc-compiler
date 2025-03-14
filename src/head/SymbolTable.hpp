@@ -14,6 +14,7 @@ public:
     struct Symbol {
         std::string name; // 修改后的名称，如 @ident_层 或 @ident_层_const
         bool is_const;    // 是否为常量
+        bool is_param;    // 是否为参数
         Symbol(std::string n, bool c) : name(std::move(n)), is_const(c) {
         }
     };
@@ -65,17 +66,20 @@ public:
     }
 
     // 添加变量到符号表
-    void addVariable(const std::string &ident, bool is_const) {
+    void addVariable(const std::string &ident, bool is_const, bool is_param) {
         // 生成修改后的变量名，例如 @x_0 或 @x_0_const
-        std::string modified_name =
-            "@" + ident + "_" + std::to_string(TemValId++);
+        std::string modified_name;
+        if (is_param) {
+            modified_name = "%" + ident + "_" + std::to_string(TemValId++);
+        } else {
+            modified_name = "@" + ident + "_" + std::to_string(TemValId++);
+        }
         if (is_const) {
             modified_name += "_const"; // 常量变量名后缀
         }
-
         // 检查当前作用域是否已存在同名变量
         if (table[current_level].find(ident) != table[current_level].end()) {
-            std::cerr << "错误: 变量 '" << ident << "' 在层级 " << TemValId
+            std::cerr << "错误: 变量 '" << ident << "' 在层级 " << TemValId - 1
                       << " 已存在\n";
         }
 

@@ -81,7 +81,7 @@ public:
                 dynamic_cast<FuncFParamAST *>(params[i].get());
             if (param_ast) {
                 // 添加参数到符号表（非常量）
-                symTab.addVariable(param_ast->ident, false);
+                symTab.addVariable(param_ast->ident, false, true);
                 // 输出参数定义
                 param_ast->Dump();
                 if (i < params.size() - 1)
@@ -310,7 +310,7 @@ public:
         if (has_returned)
             return 0;
         // 在 Dump 时添加常量到符号表
-        symTab.addVariable(ident, true); // 添加常量
+        symTab.addVariable(ident, true, false); // 添加常量
         int val_id = const_init_val->Dump();
         std::string modified_name = symTab.findVariable(ident);
         std::cout << modified_name << " = alloc i32\n";
@@ -331,7 +331,7 @@ public:
         if (has_returned)
             return 0;
         // 在 Dump 时添加变量到符号表
-        symTab.addVariable(ident, false); // 添加非常量变量
+        symTab.addVariable(ident, false, false); // 添加非常量变量
         std::string modified_name = symTab.findVariable(ident);
         std::cout << modified_name << " = alloc i32\n";
         if (init_val) {

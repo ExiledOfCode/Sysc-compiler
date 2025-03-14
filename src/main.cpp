@@ -27,12 +27,38 @@ int TemValId = 0;      // 全局变量编号（临时，局部，全局）
 int block_counter = 0;
 SymbolTable symTab;
 
+int lib_size = 8;
+const string lib_ident[] = {"getint", "getch",    "getarray",  "putint",
+                            "putch",  "putarray", "starttime", "stoptime"};
+const string lib_type[] = {"i32",  "i32",  "i32",  "void",
+                           "void", "void", "void", "void"};
+const std::vector<std::string> lib_param[] = {
+    {}, {}, {"*i32"}, {"i32"}, {"i32"}, {"i32", "*i32"}, {}, {}};
+void add_declare_library_functions() {
+    for (int i = 0; i < 8; i++) {
+        std::cout << "decl " << "@";
+        std::cout << lib_ident[i] << "(";
+        for (int j = 0; j < lib_param[i].size(); j++) {
+            std::cout << lib_param[i][j];
+            if (j != lib_param[i].size() - 1)
+                std::cout << ", ";
+        }
+        std::cout << ")";
+        if (lib_type[i] == "i32")
+            std::cout << ": " << lib_type[i];
+        else if (lib_type[i] == "void")
+            ;
+        std::cout << std::endl;
+        symTab.addFunction(lib_ident[i], lib_type[i], lib_param[i]);
+    }
+}
 extern FILE *yyin;
 extern int yyparse(unique_ptr<BaseAST> &ast);
 void getIR(std::unique_ptr<BaseAST> &ast, const char *output_file) {
     ofstream out_file(output_file);
     std::streambuf *coutbuf = std::cout.rdbuf();
     std::cout.rdbuf(out_file.rdbuf());
+    add_declare_library_functions();
     ast->Dump();
     std::cout.rdbuf(coutbuf);
 }
